@@ -491,7 +491,7 @@ class MemoryManager(object):
         resurrector = '_resurrect_' + cls_str.replace(':', '_')
         if not hasattr(self, resurrector):
             # It must be a persistent type.
-            cls = find_class_from_string(cls_str)
+            cls = _find_class_from_string(cls_str)
             res = cls(__manager__=self, _oid=oid)
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, res)

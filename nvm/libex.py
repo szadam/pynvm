@@ -25,6 +25,24 @@ pmemobj_structs = """
         PObject ob_base;
         double fval;
         } PFloatObject;
+    typedef struct {
+        PObject ob_base;
+        size_t ma_used;
+        PObjPtr ma_keys;            /* PDictKeysObject */
+        PObjPtr ma_values;
+        } PDictObject;
+    typedef struct {
+        ssize_t me_hash;
+        PObjPtr me_key;
+        PObjPtr me_value;           /* Only meaningful for combined table */
+        } PDictKeyEntry;
+    typedef struct {
+        ssize_t dk_refcnt;
+        ssize_t dk_size;
+      /*dict_lookup_func dk_lookup;*/
+        ssize_t dk_usable;
+        PDictKeyEntry dk_entries[1];
+        } PDictKeysObject;
 
     """
 
