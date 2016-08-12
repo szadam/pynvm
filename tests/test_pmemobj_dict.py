@@ -73,6 +73,11 @@ class TestPersistentDict(TestCase):
         del d['a']
         self.assertEqual(d, {})
 
+    def test_delitem_bad_key(self):
+        d = self._make_dict()
+        with self.assertRaises(KeyError):
+            del d['a']
+
     def test_constructor(self):
         kw = dict(a=1, b=2, c=3)
         arg = (('z', 5), ('a', 7))
