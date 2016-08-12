@@ -236,7 +236,19 @@ class PersistentDict(abc.MutableMapping):
         return self.__manager__.resurrect(ep.me_value)
 
     def __delitem__(self, key):
-        pass
+        mm = self.__manager__
+        khash = hash(key)
+        ep = self._lookdict(key, khash)
+        if ep is None or mm.otuple(ep.me_value) == mm.OID_NULL:
+            raise KeyError(key)
+        with mm.transaction():
+            old_value_oid = mm.otuple(ep.me_value)
+            ep.me_value = mm.OID_NULL
+            self._body.ma_used -= 1
+            old_key_oid = mm.otuple(ep.me_key)
+            ep.me_key = DUMMY
+            mm.decref(old_value_oid)
+            mm.decref(old_key_oid)
 
     def __iter__(self):
         mm = self.__manager__

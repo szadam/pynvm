@@ -66,6 +66,13 @@ class TestPersistentDict(TestCase):
         d['a'] = 'b'
         self.assertCountEqual(list(d), [1, 45, 'a'])
 
+    def test_delitem(self):
+        d = self._make_dict()
+        d['a'] = 1
+        self.assertEqual(d, {'a': 1})
+        del d['a']
+        self.assertEqual(d, {})
+
     # XXX test(s) for dict mutating on comparison during lookdict
 
 
