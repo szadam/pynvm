@@ -155,7 +155,7 @@ class PersistentDict(abc.MutableMapping):
                     freeslot = ep
                 perturb = perturb >> PERTURB_SHIFT
                 # We will eventually visit every key slot in the dict, once
-                # perturb goes to zero, so we will evnetually do a return.
+                # perturb goes to zero, so we will eventually do a return.
 
     def _find_empty_slot(self, key, khash):
         # Find slot from hash when key is not in dict.
