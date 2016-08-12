@@ -196,7 +196,7 @@ class PersistentDict(abc.MutableMapping):
                     ep.me_hash, mm.otuple(ep.me_key), mm.otuple(ep.me_value)))
 
     def __len__(self):
-        return self._keys.dk_size
+        return self._body.ma_used
 
     def __setitem__(self, key, value):
         khash = hash(key)

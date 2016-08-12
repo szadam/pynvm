@@ -101,6 +101,23 @@ class TestPersistentDict(TestCase):
         d = self._reread_dict()
         assertRepr(d, data)
 
+    def test_len(self):
+        d = self._make_dict()
+        self.assertEqual(len(d), 0)
+        d['a'] = 1
+        self.assertEqual(len(d), 1)
+        d['b'] = 7
+        self.assertEqual(len(d), 2)
+        d[999] = -1
+        self.assertEqual(len(d), 3)
+        del d['b']
+        self.assertEqual(len(d), 2)
+        del d[999]
+        self.assertEqual(len(d), 1)
+        del d['a']
+        self.assertEqual(len(d), 0)
+
+
     # XXX test(s) for dict mutating on comparison during lookdict
 
 
