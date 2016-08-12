@@ -82,6 +82,20 @@ class TestPersistentDict(TestCase):
         self.assertEqual(self._make_dict(arg, **kw), dict(arg, **kw))
         self.assertEqual(self._make_dict(kw, **dict(arg)), dict(kw, **dict(arg)))
 
+    def test_repr(self):
+        def assertRepr(pdict, rdict):
+            # Since the repr order isn't consistent, we parse it and turn it
+            # back into a normal dict...
+            r = repr(pdict)
+            self.assertTrue(r.startswith('PersistentDict('), 'repr is:' +  r)
+            disp = r.split('(', 1)[1].rsplit(')', 1)[0]
+            self.assertEqual(eval(disp), data)
+        data = dict(a=1, b=250, c='abc', foo='bár')
+        d = self._make_dict(data)
+        assertRepr(d, data)
+        d = self._reread_dict()
+        assertRepr(d, data)
+
     # XXX test(s) for dict mutating on comparison during lookdict
 
 

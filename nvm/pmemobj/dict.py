@@ -272,6 +272,14 @@ class PersistentDict(abc.MutableMapping):
                 continue
             yield mm.resurrect(ep.me_key)
 
+    # Additional dict methods not provided by the ABC.
+
+    @recursive_repr()
+    def __repr__(self):
+        return "{}({{{}}})".format(self.__class__.__name__,
+                                   ', '.join("{!r}: {!r}".format(k, v)
+                                             for k, v in self.items()))
+
     # Additional methods required by the pmemobj API.
 
     def _traverse(self):
