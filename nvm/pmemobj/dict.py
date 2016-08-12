@@ -113,8 +113,8 @@ class PersistentDict(abc.MutableMapping):
 
     def _lookdict(self, key, khash):
         # Generalized key lookup method.
+        mm = self.__manager__
         while True:
-            mm = self.__manager__
             keys_oid = mm.otuple(self._body.ma_keys)
             keys = ffi.cast('PDictKeysObject *', mm.direct(keys_oid))
             mask = keys.dk_size - 1
@@ -122,8 +122,6 @@ class PersistentDict(abc.MutableMapping):
             i = khash & mask
             ep = ffi.addressof(ep0[i])
             me_key = mm.otuple(ep.me_key)
-            # XXX need to add in the non-mutation checks, since mutation could
-            # happen when the ressurect or comparison is done.
             if me_key == mm.OID_NULL:
                 return ep
             if me_key == DUMMY:
@@ -147,7 +145,7 @@ class PersistentDict(abc.MutableMapping):
                     return ep if freeslot is None else freeslot
                 if ep.me_hash == khash and me_key != DUMMY:
                     match = mm.resurrect(me_key) == key  # dict could mutate
-                    if (self._body.ma_keys == keys_oid
+                    if (mm.otuple(self._body.ma_keys) == keys_oid
                             and mm.otuple(ep.me_key) == me_key):
                         if match:
                             return ep

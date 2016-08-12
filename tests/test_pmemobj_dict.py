@@ -41,7 +41,7 @@ class TestPersistentDict(TestCase):
             d['aa']
 
     def test_set_get_mulitiple_keys_of_various_types(self):
-        data = {'a': 1, 2: 3.7, 4.1: 3, 'something': 'somewhere'}
+        data = {'a': 1, 2: 3.7, 4.1: 3, 'something': 'somewhere', 'főo': 'bàr'}
         d = self._make_dict()
         for key, value in data.items():
             d[key] = value
