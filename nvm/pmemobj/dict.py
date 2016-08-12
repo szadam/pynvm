@@ -62,13 +62,24 @@ class PersistentDict(abc.MutableMapping):
                 d.ma_keys = self._new_keys_object(MIN_SIZE_COMBINED)
                 d.ma_values = mm.OID_NULL
                 d.ma_used = 0
+                if len(args) > 1:
+                    raise TypeError("PersistentDict expected at most 1"
+                                    "argument, got {}", len(args))
                 if args:
-                    raise NotImplementedError()
+                    arg = args[0]
+                    if hasattr(arg, 'items'):
+                        arg = arg.items()
+                    for key, value in arg:
+                        self[key] = value
+                if kw:
+                    for key, value in kw.items():
+                        self[key] = value
         else:
             self._oid = kw.pop('_oid')
+            if args or kw:
+                raise TypeError("Only __manager__ and _oid arguments are valid",
+                                " for resurrection, not {}".format((args, kw)))
             self._body = ffi.cast('PDictObject *', mm.direct(self._oid))
-        if kw:
-            raise TypeError("Unrecognized keyword arguments(s) {}".format(kw))
 
     # Methods and properties needed to implement the ABC required methods.
 

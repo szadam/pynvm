@@ -73,6 +73,15 @@ class TestPersistentDict(TestCase):
         del d['a']
         self.assertEqual(d, {})
 
+    def test_constructor(self):
+        kw = dict(a=1, b=2, c=3)
+        arg = (('z', 5), ('a', 7))
+        self.assertEqual(self._make_dict(**kw), kw)
+        self.assertEqual(self._make_dict(arg), dict(arg))
+        self.assertEqual(self._make_dict(kw), kw)
+        self.assertEqual(self._make_dict(arg, **kw), dict(arg, **kw))
+        self.assertEqual(self._make_dict(kw, **dict(arg)), dict(kw, **dict(arg)))
+
     # XXX test(s) for dict mutating on comparison during lookdict
 
 
