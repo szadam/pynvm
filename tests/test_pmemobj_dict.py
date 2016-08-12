@@ -112,10 +112,24 @@ class TestPersistentDict(TestCase):
         self.assertEqual(len(d), 3)
         del d['b']
         self.assertEqual(len(d), 2)
+        d = self._reread_dict()
+        self.assertEqual(len(d), 2)
         del d[999]
         self.assertEqual(len(d), 1)
         del d['a']
         self.assertEqual(len(d), 0)
+
+    def test_clear(self):
+        d = self._make_dict(a=1, b=2, c=3)
+        d.clear()
+        self.assertEqual(d, {})
+        self.assertEqual(len(d), 0)
+        d = self._reread_dict()
+        self.assertEqual(d, {})
+        self.assertEqual(len(d), 0)
+        # Make sure clear didn't break it.
+        d[1] = 7
+        self.assertEqual(d, {1: 7})
 
 
     # XXX test(s) for dict mutating on comparison during lookdict

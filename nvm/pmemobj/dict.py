@@ -213,8 +213,8 @@ class PersistentDict(abc.MutableMapping):
                 mm.incref(v_oid)
                 mm.decref(old_v_oid)
                 return
+            k_oid = mm.persist(key)
             if me_key == mm.OID_NULL:
-                k_oid = mm.persist(key)
                 if keys.dk_usable <= 0:
                     self._insertion_resize()
                     keys = self._keys
@@ -226,8 +226,8 @@ class PersistentDict(abc.MutableMapping):
                 ep.me_hash = khash
             else:
                 if me_key == DUMMY:
-                    ep.me_key = key
-                    mm.incref(key)
+                    ep.me_key = k_oid
+                    mm.incref(k_oid)
                     ep.me_hash = khash
                 else:
                     raise NotImplementedError("CPython algo thinks this should"
