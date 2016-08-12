@@ -10,7 +10,7 @@ class TestPersistentList(TestCase):
 
     def _make_list(self, arg):
         self.fn = self._test_fn()
-        self.pop = pmemobj.create(self.fn)
+        self.pop = pmemobj.create(self.fn, debug=True)
         self.addCleanup(self.pop.close)
         self.pop.root = self.pop.new(pmemobj.PersistentList, arg)
         return self.pop.root

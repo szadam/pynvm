@@ -34,7 +34,7 @@ PERTURB_SHIFT = 5
 DUMMY = (0, 10)
 
 # Arbitrary number.  XXX find a way to make sure we don't duplicate these.
-PDICTKEYSOBJECT_TYPE_NUM = 30
+PDICTKEYSOBJECT_TYPE_NUM = 40
 
 def _usable_fraction(n):
     return (2*n+1)//3
@@ -262,6 +262,11 @@ class PersistentDict(abc.MutableMapping):
                 continue
             yield mm.otuple(ep.me_key)
             yield mm.otuple(ep.me_value)
+
+    def _substructures(self):
+        return ((self.__manager__.otuple(self._body.ma_keys),
+                 PDICTKEYSOBJECT_TYPE_NUM),
+               )
 
     def _deallocate(self):
         self.clear()
