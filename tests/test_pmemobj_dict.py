@@ -15,21 +15,21 @@ class TestPersistentDict(TestCase):
         self.pop.root = self.pop.new(pmemobj.PersistentDict, *args, **kw)
         return self.pop.root
 
-    def _reread_dict(self):
+    def _reload_root(self):
         self.pop.close()
-        self.pop = pmemobj.open(self.fn)
+        self.pop = pmemobj.open(self.fn, debug=True)
         return self.pop.root
 
     def test_constructor_defaults(self):
         # This just tests that the constructor doesn't blow up.
         d = self._make_dict()
-        self._reread_dict()
+        self._reload_root()
 
     def test_set_get_one_item(self):
         d = self._make_dict()
         d['a'] = 1
         self.assertEqual(d['a'], 1)
-        d = self._reread_dict()
+        d = self._reload_root()
         self.assertEqual(d['a'], 1)
 
     def test_get_unknown_key(self):
@@ -46,7 +46,7 @@ class TestPersistentDict(TestCase):
         for key, value in data.items():
             d[key] = value
             self.assertEqual(d[key], value)
-        d = self._reread_dict()
+        d = self._reload_root()
         for key, value  in data.items():
             self.assertEqual(d[key], value)
 
@@ -56,7 +56,7 @@ class TestPersistentDict(TestCase):
         self.assertEqual(d['a'], 1)
         d['a'] = 'foo'
         self.assertEqual(d['a'], 'foo')
-        d = self._reread_dict()
+        d = self._reload_root()
         self.assertEqual(d['a'], 'foo')
 
     def test_iter(self):
@@ -98,7 +98,7 @@ class TestPersistentDict(TestCase):
         data = dict(a=1, b=250, c='abc', foo='bár')
         d = self._make_dict(data)
         assertRepr(d, data)
-        d = self._reread_dict()
+        d = self._reload_root()
         assertRepr(d, data)
 
     def test_len(self):
@@ -112,7 +112,7 @@ class TestPersistentDict(TestCase):
         self.assertEqual(len(d), 3)
         del d['b']
         self.assertEqual(len(d), 2)
-        d = self._reread_dict()
+        d = self._reload_root()
         self.assertEqual(len(d), 2)
         del d[999]
         self.assertEqual(len(d), 1)
@@ -124,12 +124,43 @@ class TestPersistentDict(TestCase):
         d.clear()
         self.assertEqual(d, {})
         self.assertEqual(len(d), 0)
-        d = self._reread_dict()
+        d = self._reload_root()
         self.assertEqual(d, {})
         self.assertEqual(len(d), 0)
         # Make sure clear didn't break it.
         d[1] = 7
         self.assertEqual(d, {1: 7})
+
+    def test_multiple_dicts(self):
+        e = [
+            dict(a='foo', b='bar'),
+            dict(a=1, bp=3),
+            dict(z=7, p=300),
+            dict(l=9),
+            ]
+        for i in range(4, 20):
+            e.append(dict(a=1, b=2, c=3, d=4))
+        self._make_dict()
+        # Use a list instead so that this doesn't test resize.
+        l = self.pop.root = self.pop.new(pmemobj.PersistentList)
+        for i in range(len(e)):
+            l.append(self.pop.new(pmemobj.PersistentDict, e[i]))
+        for i in range(len(l)):
+            self.assertEqual(l[i], e[i])
+        l = self._reload_root()
+        for i in range(len(l)):
+            self.assertEqual(l[i], e[i])
+        # Test GC.
+        for i in range(10):
+            l[i] = None
+        l = self._reload_root()
+        for i in range(10):
+            self.assertIsNone(l[i])
+        for i in range(10, len(l)):
+            self.assertEqual(l[i], e[i])
+        self.pop.root = None
+        l = self._reload_root()
+        self.assertIsNone(self.pop.root)
 
 
     # XXX test(s) for dict mutating on comparison during lookdict

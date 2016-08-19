@@ -301,3 +301,4 @@ class PersistentDict(abc.MutableMapping):
 
     def _deallocate(self):
         self.clear()
+        self.__manager__.free(self._body.ma_keys)

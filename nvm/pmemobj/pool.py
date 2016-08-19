@@ -793,7 +793,7 @@ class PersistentObjectPool(object):
         gc_counts = collections.defaultdict(int)
 
         with self.lock:
-            # Catalog all PObjects.
+            # Catalog all pmem objects.
             oid = self.mm.otuple(lib.pmemobj_first(self._pool_ptr))
             while oid != self.mm.OID_NULL:
                 type_num = lib.pmemobj_type_num(oid)
