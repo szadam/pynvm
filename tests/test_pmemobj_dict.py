@@ -162,6 +162,34 @@ class TestPersistentDict(TestCase):
         l = self._reload_root()
         self.assertIsNone(self.pop.root)
 
+    def test_dict_resize(self):
+        d = self._make_dict()
+        for i in range(3):
+            d[i] = i
+        self.assertEqual(d, {i: i for i in range(3)})
+        d = self._reload_root()
+        for i in range(3, 20):
+            d[i] = i
+        self.assertEqual(d, {i: i for i in range(20)})
+        d = self._reload_root()
+        for i in range(20, 40):
+            d[i] = i
+        self.assertEqual(d, {i: i for i in range(40)})
+        d = self._reload_root()
+        for i in range(7):
+            del d[i]
+        self.assertEqual(d, {i: i for i in range(7, 40)})
+        d = self._reload_root()
+        for i in range(10, 40):
+            del d[i]
+        self.assertEqual(d, {i: i for i in range(7, 10)})
+        d = self._reload_root()
+        self.assertEqual(d, {i: i for i in range(7, 10)})
+        d.clear()
+        self.assertEqual(d, {})
+        d = self._reload_root()
+        self.assertEqual(d, {})
+
 
     # XXX test(s) for dict mutating on comparison during lookdict
 

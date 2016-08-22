@@ -90,7 +90,7 @@ class PersistentDict(abc.MutableMapping):
         return ffi.cast('PDictKeysObject *', mm.direct(keys_oid))
 
     def _growth_rate(self):
-        self._body.ma_used * 2 + self._ma_keys.dk_size / 2
+        return self._body.ma_used*2 + (self._keys.dk_size >> 1)
 
     def _new_keys_object(self, size):
         assert size >= MIN_SIZE_SPLIT
@@ -184,6 +184,39 @@ class PersistentDict(abc.MutableMapping):
         assert mm.otuple(ep.me_key) == mm.OID_NULL
         return ep
 
+    def _insertion_resize(self):
+        # This is modeled on CPython's insertion_resize/dictresize, but
+        # assuming we always have a combined dict.  We copy the keys and values
+        # into a new dict structure and free the old one.  We don't touch the
+        # refcounts.
+        mm = self.__manager__
+        minused = self._growth_rate()
+        newsize = MIN_SIZE_COMBINED
+        while newsize <= minused and newsize > 0:
+            newsize = newsize << 1
+        oldkeys = self._keys
+        oldkeys_oid = mm.otuple(self._body.ma_keys)
+        with mm.transaction():
+            mm.snapshot_range(ffi.addressof(self._body, 'ma_keys'),
+                              ffi.sizeof('PObjPtr'))
+            self._body.ma_keys = self._new_keys_object(newsize)
+            oldsize = oldkeys.dk_size
+            old_ep0 = ffi.cast('PDictKeyEntry *',
+                               ffi.addressof(oldkeys.dk_entries[0]))
+            for i in range(oldsize):
+                old_ep = old_ep0[i]
+                me_value = mm.otuple(old_ep.me_value)
+                if me_value != mm.OID_NULL:
+                    me_key = mm.otuple(old_ep.me_key)
+                    assert me_key != DUMMY
+                    me_hash = old_ep.me_hash
+                    new_ep = self._find_empty_slot(me_key, me_hash)
+                    new_ep.me_key = me_key
+                    new_ep.me_hash = me_hash
+                    new_ep.me_value = me_value
+            self._keys.dk_usable -= self._body.ma_used
+            mm.free(oldkeys_oid)
+
     def __dumpdict(self):
         # This is for debugging.
         mm = self.__manager__
@@ -199,6 +232,7 @@ class PersistentDict(abc.MutableMapping):
         return self._body.ma_used
 
     def __setitem__(self, key, value):
+        # This is modeled on CPython's insertdict.
         khash = hash(key)
         mm = self.__manager__
         keys = self._keys
@@ -220,7 +254,7 @@ class PersistentDict(abc.MutableMapping):
                     keys = self._keys
                 ep = self._find_empty_slot(key, khash)
                 keys.dk_usable -= 1
-                assert keys.dk_usable >= 0
+                assert keys.dk_usable >= 0, "dk_usable is %s" % keys.dk_usable
                 ep.me_key = k_oid
                 mm.incref(k_oid)
                 ep.me_hash = khash
