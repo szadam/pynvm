@@ -43,6 +43,10 @@ pmemobj_structs = """
         ssize_t dk_usable;
         PDictKeyEntry dk_entries[1];
         } PDictKeysObject;
+    typedef struct {
+        PObject ob_base;
+        PObjPtr ob_dict;
+        } PObjectObject;
 
     """
 
