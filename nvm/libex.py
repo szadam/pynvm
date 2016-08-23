@@ -32,7 +32,7 @@ pmemobj_structs = """
         PObjPtr ma_values;
         } PDictObject;
     typedef struct {
-        ssize_t me_hash;
+        uint64_t me_hash;
         PObjPtr me_key;
         PObjPtr me_value;           /* Only meaningful for combined table */
         } PDictKeyEntry;

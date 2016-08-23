@@ -1,8 +1,13 @@
 import collections
+import hashlib
+import logging
+import sys
 
 from .compat import recursive_repr, abc
 
 from _pmem import ffi
+
+log = logging.getLogger('nvm.pmemobj.dict')
 
 # XXX CPython has a dictionary structure that has an optimization for a common
 # Python case: multiple instances of a class, where each instance has the same
@@ -35,6 +40,17 @@ DUMMY = (0, 10)
 
 # Arbitrary number.  XXX find a way to make sure we don't duplicate these.
 PDICTKEYSOBJECT_TYPE_NUM = 40
+
+# Python3's hash function is not guaranteed to produce the same results
+# between versions or across platforms, so we need a stable hash of our own.
+# XXX This is a prime candidate for being recoded in C, hopefully avoiding
+# the string conversion step somehow.
+def fixed_hash(s):
+    s = str(s)
+    if sys.version_info[0] > 2:
+        s = s.encode()
+    digits = hashlib.md5(s).hexdigest()
+    return int(digits[:16], 16) ^ int(digits[16:], 16)
 
 def _usable_fraction(n):
     return (2*n+1)//3
@@ -217,23 +233,23 @@ class PersistentDict(abc.MutableMapping):
             self._keys.dk_usable -= self._body.ma_used
             mm.free(oldkeys_oid)
 
-    def __dumpdict(self):
+    def _dumpdict(self):
         # This is for debugging.
         mm = self.__manager__
         keys = self._keys
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
-        print('size: ', keys.dk_size)
+        log.debug('size: %s', keys.dk_size)
         for i in range(keys.dk_size):
             ep = ep0[i]
-            print('hash: %s, key oid: %s, value oid: %s' % (
-                    ep.me_hash, mm.otuple(ep.me_key), mm.otuple(ep.me_value)))
+            log.debug('hash: %s, key oid: %s, value oid: %s',
+                    ep.me_hash, mm.otuple(ep.me_key), mm.otuple(ep.me_value))
 
     def __len__(self):
         return self._body.ma_used
 
     def __setitem__(self, key, value):
         # This is modeled on CPython's insertdict.
-        khash = hash(key)
+        khash = fixed_hash(key)
         mm = self.__manager__
         keys = self._keys
         ep = self._lookdict(key, khash)
@@ -273,7 +289,7 @@ class PersistentDict(abc.MutableMapping):
 
     def __getitem__(self, key):
         mm = self.__manager__
-        khash = hash(key)
+        khash = fixed_hash(key)
         ep = self._lookdict(key, khash)
         if ep is None or mm.otuple(ep.me_value) == mm.OID_NULL:
             raise KeyError(key)
@@ -282,7 +298,7 @@ class PersistentDict(abc.MutableMapping):
 
     def __delitem__(self, key):
         mm = self.__manager__
-        khash = hash(key)
+        khash = fixed_hash(key)
         ep = self._lookdict(key, khash)
         if ep is None or mm.otuple(ep.me_value) == mm.OID_NULL:
             raise KeyError(key)
