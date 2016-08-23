@@ -67,6 +67,8 @@ class DummyPersistentObjectPool:
     def new(self, typ, *args, **kw):
         if typ == PersistentList:
             return list(*args, **kw)
+        if typ == PersistentDict:
+            return dict(*args, **kw)
     @contextmanager
     def transaction(self):
         yield None
