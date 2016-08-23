@@ -55,24 +55,6 @@ CH_SP = ord(' ')
 CH_O = ord('o')
 CH_P = ord('p')
 
-# When we have a working PersistentObject we can use objects instead of
-# this list-with-named-indexes hack.
-ROOT_STATE = 0
-ROOT_PLAYER = 1
-ROOT_ALIENS = 2
-ROOT_BULLETS = 3
-ROOT_STARS = 4
-ROOT_LEN = 5
-
-STATE_TIMER = 0
-STATE_SCORE = 1
-STATE_HIGH_SCORE = 2
-STATE_LEVEL = 3
-STATE_NEW_LEVEL = 4
-STATE_DX = 5
-STATE_DY = 6
-# End of named-index hack.
-
 parser = argparse.ArgumentParser()
 parser.add_argument('fn', help="Persistent memory game file")
 parser.add_argument('--no-pmem', action='store_true',
@@ -116,19 +98,25 @@ class PMInvaders2(object):
         screen.keypad(True)
         # Game init
         if pop.root is None:
-            pop.root = pop.new(PersistentList, [None] * ROOT_LEN)
-        if pop.root[ROOT_STATE] is None:
-            pop.root[ROOT_STATE] = self.pop.new(PersistentList,
-                [1, 0, 0, 0, 1, 1, 0])
-        if pop.root[ROOT_PLAYER] is None:
-            pop.root[ROOT_PLAYER] = self.pop.new(PersistentDict,
+            pop.root = pop.new(PersistentDict)
+        if 'state' not in pop.root:
+            pop.root['state'] = self.pop.new(PersistentDict,
+                timer=1,
+                score=0,
+                high_score=0,
+                level=0,
+                new_level=1,
+                dx=1,
+                dy=0)
+        if 'player' not in pop.root:
+            pop.root['player'] = self.pop.new(PersistentDict,
                 x=GAME_WIDTH // 2, timer=1)
-        if pop.root[ROOT_ALIENS] is None:
-            pop.root[ROOT_ALIENS] = self.pop.new(PersistentList)
-        if pop.root[ROOT_BULLETS] is None:
-            pop.root[ROOT_BULLETS] = self.pop.new(PersistentList)
-        if pop.root[ROOT_STARS] is None:
-            pop.root[ROOT_STARS] = self.pop.new(PersistentList)
+        if 'aliens' not in pop.root:
+            pop.root['aliens'] = self.pop.new(PersistentList)
+        if 'bullets' not in pop.root:
+            pop.root['bullets'] = self.pop.new(PersistentList)
+        if 'stars' not in pop.root:
+            pop.root['stars'] = self.pop.new(PersistentList)
         self.root = pop.root
 
     def close(self):
@@ -162,7 +150,7 @@ class PMInvaders2(object):
         # append is as atomic as the C code's linked list pointer assignment.
         for x in range(1, GAME_WIDTH):
             if randrange(0, 100) < 4:
-                self.root[ROOT_STARS].append(self.create_star(x, 1))
+                self.root['stars'].append(self.create_star(x, 1))
 
     def draw_star(self, star):
         self.screen.addch(star['y'], star['x'], star['c'],
@@ -171,7 +159,7 @@ class PMInvaders2(object):
     def process_stars(self):
         new_line = False
         with self.pop.transaction():
-            stars = self.root[ROOT_STARS]
+            stars = self.root['stars']
             for star in list(stars):
                 star['timer'] -= 1
                 if not star['timer']:
@@ -211,7 +199,7 @@ class PMInvaders2(object):
             exit = self.screen.getch()
             self.screen.erase()
             self.draw_border()
-            if not self.root[ROOT_STARS]:
+            if not self.root['stars']:
                 self.create_stars()
             self.process_stars()
             self.draw_title()
@@ -220,17 +208,17 @@ class PMInvaders2(object):
         return exit == CH_Q
 
     def draw_score(self):
-        state = self.root[ROOT_STATE]
+        state = self.root['state']
         self.printw(1, 1, "Level: {:5} Score: {} | {}".format(
-                    state[STATE_LEVEL],
-                    state[STATE_SCORE],
-                    state[STATE_HIGH_SCORE]))
+                    state['level'],
+                    state['score'],
+                    state['high_score']))
 
     def remove_aliens(self):
-        self.root[ROOT_ALIENS].clear()
+        self.root['aliens'].clear()
 
     def create_aliens(self):
-        aliens = self.root[ROOT_ALIENS]
+        aliens = self.root['aliens']
         for x in range(ALIENS_COL):
             for y in range(ALIENS_ROW):
                 aliens.append(self.pop.new(PersistentDict,
@@ -240,32 +228,32 @@ class PMInvaders2(object):
         with self.pop.transaction():
             self.remove_aliens()
             self.create_aliens()
-            state = self.root[ROOT_STATE]
-            if state[STATE_NEW_LEVEL] > 0 or state[STATE_LEVEL] > 1:
-                state[STATE_LEVEL] += state[STATE_NEW_LEVEL]
-            state[STATE_NEW_LEVEL] = 0
-            state[STATE_DX] = 1
-            state[STATE_DY] = 0
-            state[STATE_TIMER] = (MAX_ALIEN_TIMER
-                                      - ALIEN_TIMER_LEVEL_FACTOR
-                                      * (state[STATE_LEVEL] - 1))
+            state = self.root['state']
+            if state['new_level'] > 0 or state['level'] > 1:
+                state['level'] += state['new_level']
+            state['new_level'] = 0
+            state['dx'] = 1
+            state['dy'] = 0
+            state['timer'] = (MAX_ALIEN_TIMER
+                              - ALIEN_TIMER_LEVEL_FACTOR
+                              * (state['level'] - 1))
 
     def update_score(self, delta):
-        state = self.root[ROOT_STATE]
-        if delta < 0 and not state[STATE_SCORE]:
+        state = self.root['state']
+        if delta < 0 and not state['score']:
             return
-        state[STATE_SCORE] += delta
-        if state[STATE_SCORE] < 0:
-            state[STATE_SCORE] = 0
-        if state[STATE_SCORE] > state[STATE_HIGH_SCORE]:
-            state[STATE_HIGH_SCORE] = state[STATE_SCORE]
+        state['score'] += delta
+        if state['score'] < 0:
+            state['score'] = 0
+        if state['score'] > state['high_score']:
+            state['high_score'] = state['score']
 
     def move_aliens(self):
-        aliens = self.root[ROOT_ALIENS]
-        player = self.root[ROOT_PLAYER]
-        state = self.root[ROOT_STATE]
-        dx = state[STATE_DX]
-        dy = state[STATE_DY]
+        aliens = self.root['aliens']
+        player = self.root['player']
+        state = self.root['state']
+        dx = state['dx']
+        dy = state['dy']
         if not aliens:
             return EVENT_ALIENS_KILLED
         event = None
@@ -283,32 +271,32 @@ class PMInvaders2(object):
         return event
 
     def process_aliens(self):
-        state = self.root[ROOT_STATE]
+        state = self.root['state']
         with self.pop.transaction():
-            state[STATE_TIMER] -= 1
-            if not state[STATE_TIMER]:
-                state[STATE_TIMER] = (MAX_ALIEN_TIMER
-                                        - ALIEN_TIMER_LEVEL_FACTOR
-                                        * (state[STATE_LEVEL] - 1))
+            state['timer'] -= 1
+            if not state['timer']:
+                state['timer'] = (MAX_ALIEN_TIMER
+                                  - ALIEN_TIMER_LEVEL_FACTOR
+                                  * (state['level'] - 1))
                 event = self.move_aliens()
                 if event == EVENT_ALIENS_KILLED:
-                    state[STATE_NEW_LEVEL] = 1
+                    state['new_level'] = 1
                 elif event == EVENT_PLAYER_KILLED:
                     curses.flash()
                     curses.beep()
-                    state[STATE_NEW_LEVEL] = -1
+                    state['new_level'] = -1
                     self.update_score(-100)
                 elif event == EVENT_BOUNCE:
-                    state[STATE_DY] = 1
-                    state[STATE_DX] = -state[STATE_DX]
-                elif state[STATE_DY]:
-                    state[STATE_DY] = 0
-        for alien in self.root[ROOT_ALIENS]:
+                    state['dy'] = 1
+                    state['dx'] = -state['dx']
+                elif state['dy']:
+                    state['dy'] = 0
+        for alien in self.root['aliens']:
             self.screen.addch(alien['y'], alien['x'],
                               curses.ACS_DIAMOND, curses.color_pair(C_ALIEN))
 
     def process_collision(self, bullet):
-        aliens = self.root[ROOT_ALIENS]
+        aliens = self.root['aliens']
         with self.pop.transaction():
             for alien in list(aliens):
                 if (bullet['x'] == alien['x']
@@ -320,7 +308,7 @@ class PMInvaders2(object):
 
     def process_bullets(self):
         with self.pop.transaction():
-            for bullet in list(self.root[ROOT_BULLETS]):
+            for bullet in list(self.root['bullets']):
                 bullet['timer'] -= 1
                 if not bullet['timer']:
                     bullet['timer'] = MAX_BULLET_TIMER
@@ -329,11 +317,11 @@ class PMInvaders2(object):
                                   curses.ACS_BULLET,
                                   curses.color_pair(C_BULLET))
                 if bullet['y'] <= 0 or self.process_collision(bullet):
-                    self.root[ROOT_BULLETS].remove(bullet)
+                    self.root['bullets'].remove(bullet)
 
     def process_player(self, ch):
         with self.pop.transaction():
-            player = self.root[ROOT_PLAYER]
+            player = self.root['player']
             player['timer'] -= 1
             if ch in (CH_O, curses.KEY_LEFT):
                 dstx = player['x'] - 1
@@ -345,7 +333,7 @@ class PMInvaders2(object):
                     player['x'] = dstx
             elif ch == CH_SP and player['timer'] <= 0:
                 player['timer'] = MAX_PLAYER_TIMER
-                self.root[ROOT_BULLETS].append(self.pop.new(PersistentDict,
+                self.root['bullets'].append(self.pop.new(PersistentDict,
                     x=player['x'], y=PLAYER_Y-1, timer=1))
         self.screen.addch(PLAYER_Y, player['x'],
                           curses.ACS_DIAMOND,
@@ -353,14 +341,14 @@ class PMInvaders2(object):
 
     def game_loop(self):
         ch = None
-        state = self.root[ROOT_STATE]
+        state = self.root['state']
         while ch != CH_Q:
             ch = self.screen.getch()
             self.screen.erase()
             self.draw_score()
             self.draw_border()
             with self.pop.transaction():
-                if state[STATE_NEW_LEVEL]:
+                if state['new_level']:
                     self.new_level()
                 self.process_aliens()
                 self.process_bullets()
