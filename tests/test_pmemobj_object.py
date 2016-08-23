@@ -101,6 +101,12 @@ class TestPersistentObject(TestCase):
         d = self._reload_root()
         self.assertEqual(d.no_fubar(10), 11)
 
+    def test_hasattr(self):
+        d = self._make_object(Foo)
+        self.assertFalse(hasattr(d, 'foo'))
+        d.foo = 10
+        self.assertTrue(hasattr(d, 'foo'))
+        self.assertTrue(hasattr(d, '_p_mm'))
 
 
 if __name__ == '__main__':
