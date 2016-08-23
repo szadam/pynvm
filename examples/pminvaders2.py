@@ -6,7 +6,7 @@ from contextlib import contextmanager
 from random import randrange, randint
 from time import sleep
 
-from nvm.pmemobj import PersistentObjectPool, PersistentList
+from nvm.pmemobj import PersistentObjectPool, PersistentList, PersistentDict
 
 import logging
 import logging.handlers
@@ -17,6 +17,7 @@ mout.setFormatter(logging.Formatter('%(asctime)s %(name)-15s %(levelname)-8s %(m
 root = logging.getLogger()
 #root.setLevel(logging.DEBUG)
 root.addHandler(mout)
+#sout.addFilter(logging.Filter('nvm.pmemobj.dict'))
 
 # We're slow, so shorten the timers and increase the delay.  Even with this
 # the pmem version is slower than the non-pmem version.
@@ -70,25 +71,10 @@ STATE_LEVEL = 3
 STATE_NEW_LEVEL = 4
 STATE_DX = 5
 STATE_DY = 6
-
-PLAYER_X = 0
-PLAYER_TIMER = 1
-
-BULLET_X = 0
-BULLET_Y = 1
-BULLET_TIMER = 2
-
-ALIEN_X = 0
-ALIEN_Y = 1
-
-STAR_X = 0
-STAR_Y = 1
-STAR_C = 2
-STAR_TIMER = 3
 # End of named-index hack.
 
 parser = argparse.ArgumentParser()
-parser.add_argument('fn', help="Persistemt memory game file")
+parser.add_argument('fn', help="Persistent memory game file")
 parser.add_argument('--no-pmem', action='store_true',
                     help="Use dummy PersistentObjectPool instead of real one")
 
@@ -135,8 +121,8 @@ class PMInvaders2(object):
             pop.root[ROOT_STATE] = self.pop.new(PersistentList,
                 [1, 0, 0, 0, 1, 1, 0])
         if pop.root[ROOT_PLAYER] is None:
-            pop.root[ROOT_PLAYER] = self.pop.new(PersistentList,
-                [GAME_WIDTH // 2, 1])
+            pop.root[ROOT_PLAYER] = self.pop.new(PersistentDict,
+                x=GAME_WIDTH // 2, timer=1)
         if pop.root[ROOT_ALIENS] is None:
             pop.root[ROOT_ALIENS] = self.pop.new(PersistentList)
         if pop.root[ROOT_BULLETS] is None:
@@ -169,7 +155,7 @@ class PMInvaders2(object):
     def create_star(self, x, y):
         c = '*' if randint(0, 1) else '.'
         timer = MAX_STAR1_TIMER if c == '.' else MAX_STAR2_TIMER
-        return self.pop.new(PersistentList, [x, y, c, timer])
+        return self.pop.new(PersistentDict, dict(x=x, y=y, c=c, timer=timer))
 
     def create_stars(self):
         # C version prepends to list; I'm appending so list is reversed.  Our
@@ -179,7 +165,7 @@ class PMInvaders2(object):
                 self.root[ROOT_STARS].append(self.create_star(x, 1))
 
     def draw_star(self, star):
-        self.screen.addch(star[STAR_Y], star[STAR_X], star[STAR_C],
+        self.screen.addch(star['y'], star['x'], star['c'],
                           curses.color_pair(C_STAR))
 
     def process_stars(self):
@@ -187,16 +173,16 @@ class PMInvaders2(object):
         with self.pop.transaction():
             stars = self.root[ROOT_STARS]
             for star in list(stars):
-                star[STAR_TIMER] -= 1
-                if not star[STAR_TIMER]:
-                    if star[STAR_C] == '.':
-                        star[STAR_TIMER] = MAX_STAR1_TIMER
+                star['timer'] -= 1
+                if not star['timer']:
+                    if star['c'] == '.':
+                        star['timer'] = MAX_STAR1_TIMER
                         new_line = True
                     else:
-                        star[STAR_TIMER] = MAX_STAR2_TIMER
-                    star[STAR_Y] += 1
+                        star['timer'] = MAX_STAR2_TIMER
+                    star['y'] += 1
                 self.draw_star(star)
-                if star[STAR_Y] >= GAME_HEIGHT-1:
+                if star['y'] >= GAME_HEIGHT-1:
                     stars.remove(star)
             if new_line:
                 self.create_stars()
@@ -247,8 +233,8 @@ class PMInvaders2(object):
         aliens = self.root[ROOT_ALIENS]
         for x in range(ALIENS_COL):
             for y in range(ALIENS_ROW):
-                aliens.append(self.pop.new(PersistentList,
-                              [GAME_WIDTH // 2 - ALIENS_COL + x * 2, y + 3]))
+                aliens.append(self.pop.new(PersistentDict,
+                              x=GAME_WIDTH // 2 - ALIENS_COL + x * 2, y=y + 3))
 
     def new_level(self):
         with self.pop.transaction():
@@ -285,14 +271,14 @@ class PMInvaders2(object):
         event = None
         for alien in aliens:
             if dy:
-                alien[ALIEN_Y] += dy
+                alien['y'] += dy
             if dx:
-                alien[ALIEN_X] += dx
-            if alien[ALIEN_Y] >= PLAYER_Y:
+                alien['x'] += dx
+            if alien['y'] >= PLAYER_Y:
                 event = EVENT_PLAYER_KILLED
             elif (dy == 0
-                  and alien[ALIEN_X] >= GAME_WIDTH - 2
-                  or alien[ALIEN_X] <= 2):
+                  and alien['x'] >= GAME_WIDTH - 2
+                  or alien['x'] <= 2):
                 event = EVENT_BOUNCE
         return event
 
@@ -318,15 +304,15 @@ class PMInvaders2(object):
                 elif state[STATE_DY]:
                     state[STATE_DY] = 0
         for alien in self.root[ROOT_ALIENS]:
-            self.screen.addch(alien[ALIEN_Y], alien[ALIEN_X],
+            self.screen.addch(alien['y'], alien['x'],
                               curses.ACS_DIAMOND, curses.color_pair(C_ALIEN))
 
     def process_collision(self, bullet):
         aliens = self.root[ROOT_ALIENS]
         with self.pop.transaction():
             for alien in list(aliens):
-                if (bullet[BULLET_X] == alien[ALIEN_X]
-                        and bullet[BULLET_Y] == alien[ALIEN_Y]):
+                if (bullet['x'] == alien['x']
+                        and bullet['y'] == alien['y']):
                     self.update_score(1)
                     aliens.remove(alien)
                     return True
@@ -335,33 +321,33 @@ class PMInvaders2(object):
     def process_bullets(self):
         with self.pop.transaction():
             for bullet in list(self.root[ROOT_BULLETS]):
-                bullet[BULLET_TIMER] -= 1
-                if not bullet[BULLET_TIMER]:
-                    bullet[BULLET_TIMER] = MAX_BULLET_TIMER
-                    bullet[BULLET_Y] -= 1
-                self.screen.addch(bullet[BULLET_Y], bullet[BULLET_X],
+                bullet['timer'] -= 1
+                if not bullet['timer']:
+                    bullet['timer'] = MAX_BULLET_TIMER
+                    bullet['y'] -= 1
+                self.screen.addch(bullet['y'], bullet['x'],
                                   curses.ACS_BULLET,
                                   curses.color_pair(C_BULLET))
-                if bullet[BULLET_Y] <= 0 or self.process_collision(bullet):
+                if bullet['y'] <= 0 or self.process_collision(bullet):
                     self.root[ROOT_BULLETS].remove(bullet)
 
     def process_player(self, ch):
         with self.pop.transaction():
             player = self.root[ROOT_PLAYER]
-            player[PLAYER_TIMER] -= 1
+            player['timer'] -= 1
             if ch in (CH_O, curses.KEY_LEFT):
-                dstx = player[PLAYER_X] - 1
+                dstx = player['x'] - 1
                 if dstx:
-                    player[PLAYER_X] = dstx
+                    player['x'] = dstx
             elif ch in (CH_P, curses.KEY_RIGHT):
-                dstx = player[PLAYER_X] + 1
+                dstx = player['x'] + 1
                 if dstx != GAME_WIDTH:
-                    player[PLAYER_X] = dstx
-            elif ch == CH_SP and player[PLAYER_TIMER] <= 0:
-                player[PLAYER_TIMER] = MAX_PLAYER_TIMER
-                self.root[ROOT_BULLETS].append(self.pop.new(PersistentList,
-                    [player[PLAYER_X], PLAYER_Y-1, 1]))
-        self.screen.addch(PLAYER_Y, player[PLAYER_X],
+                    player['x'] = dstx
+            elif ch == CH_SP and player['timer'] <= 0:
+                player['timer'] = MAX_PLAYER_TIMER
+                self.root[ROOT_BULLETS].append(self.pop.new(PersistentDict,
+                    x=player['x'], y=PLAYER_Y-1, timer=1))
+        self.screen.addch(PLAYER_Y, player['x'],
                           curses.ACS_DIAMOND,
                           curses.color_pair(C_PLAYER))
 
