@@ -7,7 +7,9 @@ from tests.support import TestCase
 
 
 class Foo(pmemobj.PersistentObject):
-    pass
+    class_attr = 10
+    def no_fubar(self, x):
+        return x + 1
 
 
 class TestPersistentObject(TestCase):
@@ -63,6 +65,42 @@ class TestPersistentObject(TestCase):
             d.baz
         with self.assertRaises(AttributeError):
             del d.foo
+
+    def test_modify_immutable_attribute(self):
+        d = self._make_object(Foo)
+        d.bar = 1
+        d.bar += 1
+        self.assertEqual(d.bar, 2)
+        d = self._reload_root()
+        self.assertEqual(d.bar, 2)
+
+    def test_dict_as_attribute(self):
+        d = self._make_object(Foo)
+        d.bar = self.pop.new(pmemobj.PersistentDict)
+        d.bar['a'] = 'b'
+        self.assertEqual(d.bar, {'a': 'b'})
+        d = self._reload_root()
+        self.assertEqual(d.bar, {'a': 'b'})
+
+    def test_class_attribute(self):
+        d = self._make_object(Foo)
+        self.assertEqual(d.class_attr, 10)
+        d = self._reload_root()
+        self.assertEqual(d.class_attr, 10)
+
+    def test_modify_immutable_class_attribute(self):
+        d = self._make_object(Foo)
+        d.class_attr += 10
+        self.assertEqual(d.class_attr, 20)
+        d = self._reload_root()
+        self.assertEqual(d.class_attr, 20)
+
+    def test_method(self):
+        d = self._make_object(Foo)
+        self.assertEqual(d.no_fubar(10), 11)
+        d = self._reload_root()
+        self.assertEqual(d.no_fubar(10), 11)
+
 
 
 if __name__ == '__main__':

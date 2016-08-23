@@ -15,6 +15,7 @@ class PersistentObject(object):
     # XXX locking
 
     def _p_new(self, manager):
+        self._p_dict = {}    # This makes __getattribute__ simpler
         mm = self._p_mm = manager
         with mm.transaction():
             # XXX will want to implement a freelist here.
@@ -35,13 +36,10 @@ class PersistentObject(object):
 
     # Methods to emulate a normal class.
 
-    def __getattr__(self, name):
-        if name.startswith('_p_'):
-            raise AttributeError(name)
-        try:
+    def __getattribute__(self, name):
+        if not name.startswith('_p_') and name in self._p_dict:
             return self._p_dict[name]
-        except KeyError as e:
-            raise AttributeError(str(e))
+        return object.__getattribute__(self, name)
 
     def __setattr__(self, name, value):
         if name.startswith('_p_'):
