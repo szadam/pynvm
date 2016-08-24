@@ -61,41 +61,37 @@ class PersistentDict(abc.MutableMapping):
     # XXX locking
 
     def __init__(self, *args, **kw):
-        if '_p_mm' not in kw:
-            raise ValueError('_p_mm is required')
-        # XXX _p_mm could be a legit key...need a method to set
-        # _p_mm instead, which will then finish the __init__.
-        mm = self._p_mm = kw.pop('_p_mm')
-        if '_p_oid' not in kw:
-            with mm.transaction():
-                # XXX will want to implement a freelist here.
-                self._p_oid = mm.malloc(ffi.sizeof('PDictObject'))
-                ob = ffi.cast('PObject *', mm.direct(self._p_oid))
-                ob.ob_type = mm._get_type_code(PersistentDict)
-                d = self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
-                # XXX size here could be based on args.  Also, this code may get
-                # moved to a _new_dict method when we implement split dicts.
-                d.ma_keys = self._new_keys_object(MIN_SIZE_COMBINED)
-                d.ma_values = mm.OID_NULL
-                d.ma_used = 0
-                if len(args) > 1:
-                    raise TypeError("PersistentDict expected at most 1"
-                                    "argument, got {}", len(args))
-                if args:
-                    arg = args[0]
-                    if hasattr(arg, 'items'):
-                        arg = arg.items()
-                    for key, value in arg:
-                        self[key] = value
-                if kw:
-                    for key, value in kw.items():
-                        self[key] = value
-        else:
-            self._p_oid = kw.pop('_p_oid')
-            if args or kw:
-                raise TypeError("Only _p_mm and _p_oid arguments are valid",
-                                " for resurrection, not {}".format((args, kw)))
-            self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
+        if len(args) > 1:
+            raise TypeError("PersistentDict expected at most 1"
+                            "argument, got {}", len(args))
+        if args:
+            arg = args[0]
+            if hasattr(arg, 'items'):
+                arg = arg.items()
+            for key, value in arg:
+                self[key] = value
+        if kw:
+            for key, value in kw.items():
+                self[key] = value
+
+    def _p_new(self, manager):
+        mm = self._p_mm = manager
+        with mm.transaction():
+            # XXX will want to implement a freelist here.
+            self._p_oid = mm.malloc(ffi.sizeof('PDictObject'))
+            ob = ffi.cast('PObject *', mm.direct(self._p_oid))
+            ob.ob_type = mm._get_type_code(PersistentDict)
+            d = self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
+            # This code may get moved to a _new_dict method when we implement
+            # split dicts.
+            d.ma_keys = self._new_keys_object(MIN_SIZE_COMBINED)
+            d.ma_values = mm.OID_NULL
+            d.ma_used = 0
+
+    def _p_resurrect(self, manager, oid):
+        mm = self._p_mm = manager
+        self._p_oid = oid
+        self._body = ffi.cast('PDictObject *', mm.direct(oid))
 
     # Methods and properties needed to implement the ABC required methods.
 

@@ -455,7 +455,8 @@ class MemoryManager(object):
         """
         log.debug('new: %s, %s, %s', typ, args, kw)
         obj = typ.__new__(typ)
-        obj.__init__(*args, _p_mm=self, **kw)
+        obj._p_new(self)
+        obj.__init__(*args, **kw)
         return obj
 
     def persist(self, obj):
@@ -505,7 +506,7 @@ class MemoryManager(object):
             # It must be a Persistent type.
             cls = _find_class_from_string(cls_str)
             obj = cls.__new__(cls)
-            obj.__init__(_p_mm=self, _p_oid=oid)
+            obj._p_resurrect(self, oid)
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
