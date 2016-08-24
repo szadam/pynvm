@@ -421,10 +421,10 @@ class MemoryManager(object):
             # Pre-fill first two elements; they are handled as special cases.
             type_table = self.new(PersistentList,
                 [_class_string(PersistentList), _class_string(str)])
-            self.incref(type_table._oid)
-            self._obj_cache.cache_transactionally(type_table._oid, type_table)
+            self.incref(type_table._p_oid)
+            self._obj_cache.cache_transactionally(type_table._p_oid, type_table)
         self._type_table = type_table
-        return type_table._oid
+        return type_table._p_oid
 
     def _get_type_code(self, cls):
         """Return the index into the type table for cls.
@@ -466,9 +466,9 @@ class MemoryManager(object):
         except KeyError:
             pass
         if hasattr(obj, '_p_mm'):
-            tlog.debug('Persistent object: %s %s', obj._oid, obj)
-            self._obj_cache.cache(obj._oid, obj)
-            return obj._oid
+            tlog.debug('Persistent object: %s %s', obj._p_oid, obj)
+            self._obj_cache.cache(obj._p_oid, obj)
+            return obj._p_oid
         cls_str = _class_string(obj.__class__)
         persister = '_persist_' + cls_str.replace(':', '_')
         if not hasattr(self, persister):
@@ -505,7 +505,7 @@ class MemoryManager(object):
             # It must be a Persistent type.
             cls = _find_class_from_string(cls_str)
             obj = cls.__new__(cls)
-            obj.__init__(_p_mm=self, _oid=oid)
+            obj.__init__(_p_mm=self, _p_oid=oid)
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
@@ -882,8 +882,8 @@ class PersistentObjectPool(object):
                                       type_num, struct_oid, parent_oids)
 
             # Trace the object tree, removing objects that are referenced.
-            containers.remove(self.mm._type_table._oid)
-            live = [self.mm._type_table._oid]
+            containers.remove(self.mm._type_table._p_oid)
+            live = [self.mm._type_table._p_oid]
             root_oid = self.mm.otuple(self._pmem_root.root_object)
             root = self.mm.resurrect(root_oid)
             if hasattr(root, '_traverse'):

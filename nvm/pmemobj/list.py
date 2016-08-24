@@ -20,17 +20,17 @@ class PersistentList(abc.MutableSequence):
         if '_p_mm' not in kw:
             raise ValueError("_p_mm is required")
         mm = self._p_mm = kw.pop('_p_mm')
-        if '_oid' not in kw:
+        if '_p_oid' not in kw:
             with mm.transaction():
                 # XXX Will want to implement a freelist here, like CPython
-                self._oid = mm.malloc(ffi.sizeof('PListObject'))
-                ob = ffi.cast('PObject *', mm.direct(self._oid))
+                self._p_oid = mm.malloc(ffi.sizeof('PListObject'))
+                ob = ffi.cast('PObject *', mm.direct(self._p_oid))
                 ob.ob_type = mm._get_type_code(PersistentList)
         else:
-            self._oid = kw.pop('_oid')
+            self._p_oid = kw.pop('_p_oid')
         if kw:
             raise TypeError("Unrecognized keyword argument(s) {}".format(kw))
-        self._body = ffi.cast('PListObject *', mm.direct(self._oid))
+        self._body = ffi.cast('PListObject *', mm.direct(self._p_oid))
         if args:
             if len(args) != 1:
                 raise TypeError("PersistentList takes at most 1"

@@ -66,13 +66,13 @@ class PersistentDict(abc.MutableMapping):
         # XXX _p_mm could be a legit key...need a method to set
         # _p_mm instead, which will then finish the __init__.
         mm = self._p_mm = kw.pop('_p_mm')
-        if '_oid' not in kw:
+        if '_p_oid' not in kw:
             with mm.transaction():
                 # XXX will want to implement a freelist here.
-                self._oid = mm.malloc(ffi.sizeof('PDictObject'))
-                ob = ffi.cast('PObject *', mm.direct(self._oid))
+                self._p_oid = mm.malloc(ffi.sizeof('PDictObject'))
+                ob = ffi.cast('PObject *', mm.direct(self._p_oid))
                 ob.ob_type = mm._get_type_code(PersistentDict)
-                d = self._body = ffi.cast('PDictObject *', mm.direct(self._oid))
+                d = self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
                 # XXX size here could be based on args.  Also, this code may get
                 # moved to a _new_dict method when we implement split dicts.
                 d.ma_keys = self._new_keys_object(MIN_SIZE_COMBINED)
@@ -91,11 +91,11 @@ class PersistentDict(abc.MutableMapping):
                     for key, value in kw.items():
                         self[key] = value
         else:
-            self._oid = kw.pop('_oid')
+            self._p_oid = kw.pop('_p_oid')
             if args or kw:
-                raise TypeError("Only _p_mm and _oid arguments are valid",
+                raise TypeError("Only _p_mm and _p_oid arguments are valid",
                                 " for resurrection, not {}".format((args, kw)))
-            self._body = ffi.cast('PDictObject *', mm.direct(self._oid))
+            self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
 
     # Methods and properties needed to implement the ABC required methods.
 
