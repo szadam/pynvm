@@ -88,7 +88,7 @@ class Player(PersistentObject):
 
     y = GAME_HEIGHT - 1
 
-    def __init__(self, *args, **kw):
+    def __init__(self):
         self.x = GAME_WIDTH // 2
         self.timer = 1
 
@@ -98,6 +98,13 @@ class Alien(PersistentObject):
     def __init__(self, x, y):
         self.x = x
         self.y = y
+
+class Bullet(PersistentObject):
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+        self.timer = 1
 
 
 class PMInvaders2(object):
@@ -320,8 +327,8 @@ class PMInvaders2(object):
         aliens = self.root['aliens']
         with self.pop.transaction():
             for alien in list(aliens):
-                if (bullet['x'] == alien.x
-                        and bullet['y'] == alien.y):
+                if (bullet.x == alien.x
+                        and bullet.y == alien.y):
                     self.update_score(1)
                     aliens.remove(alien)
                     return True
@@ -330,14 +337,14 @@ class PMInvaders2(object):
     def process_bullets(self):
         with self.pop.transaction():
             for bullet in list(self.root['bullets']):
-                bullet['timer'] -= 1
-                if not bullet['timer']:
-                    bullet['timer'] = MAX_BULLET_TIMER
-                    bullet['y'] -= 1
-                self.screen.addch(bullet['y'], bullet['x'],
+                bullet.timer -= 1
+                if not bullet.timer:
+                    bullet.timer = MAX_BULLET_TIMER
+                    bullet.y -= 1
+                self.screen.addch(bullet.y, bullet.x,
                                   curses.ACS_BULLET,
                                   curses.color_pair(C_BULLET))
-                if bullet['y'] <= 0 or self.process_collision(bullet):
+                if bullet.y <= 0 or self.process_collision(bullet):
                     self.root['bullets'].remove(bullet)
 
     def process_player(self, ch):
@@ -354,8 +361,8 @@ class PMInvaders2(object):
                     player.x = dstx
             elif ch == CH_SP and player.timer <= 0:
                 player.timer = MAX_PLAYER_TIMER
-                self.root['bullets'].append(self.pop.new(PersistentDict,
-                    x=player.x, y=player.y-1, timer=1))
+                self.root['bullets'].append(self.pop.new(Bullet,
+                    x=player.x, y=player.y-1))
         self.screen.addch(player.y, player.x,
                           curses.ACS_DIAMOND,
                           curses.color_pair(C_PLAYER))
