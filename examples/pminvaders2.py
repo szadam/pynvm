@@ -6,17 +6,18 @@ from contextlib import contextmanager
 from random import randrange, randint
 from time import sleep
 
-from nvm.pmemobj import PersistentObjectPool, PersistentList, PersistentDict
+from nvm.pmemobj import (PersistentObjectPool, PersistentList, PersistentDict,
+                         PersistentObject)
 
 import logging
 import logging.handlers
-sout = logging.StreamHandler(sys.stdout)
+sout = logging.StreamHandler(sys.stderr)
 sout.setFormatter(logging.Formatter('%(asctime)s %(name)-15s %(levelname)-8s %(message)s'))
 mout = logging.handlers.MemoryHandler(100*10000, target=sout)
 mout.setFormatter(logging.Formatter('%(asctime)s %(name)-15s %(levelname)-8s %(message)s'))
 root = logging.getLogger()
 #root.setLevel(logging.DEBUG)
-root.addHandler(mout)
+root.addHandler(sout)
 #sout.addFilter(logging.Filter('nvm.pmemobj.dict'))
 
 # We're slow, so shorten the timers and increase the delay.  Even with this
@@ -36,8 +37,6 @@ GAME_HEIGHT = 25
 
 ALIENS_ROW = 4
 ALIENS_COL = 18
-
-PLAYER_Y = GAME_HEIGHT - 1
 
 C_UNKNOWN = 0
 C_PLAYER = 1
@@ -60,6 +59,8 @@ parser.add_argument('fn', help="Persistent memory game file")
 parser.add_argument('--no-pmem', action='store_true',
                     help="Use dummy PersistentObjectPool instead of real one")
 
+class Dummy:
+    def __init__(*args, **kw): pass
 class DummyPersistentObjectPool:
     def __init__(self, *args, **kw):
         self.root = None
@@ -69,6 +70,9 @@ class DummyPersistentObjectPool:
             return list(*args, **kw)
         if typ == PersistentDict:
             return dict(*args, **kw)
+        else:
+            typ.__bases__ = (Dummy,)
+            return typ(*args, **kw)
     @contextmanager
     def transaction(self):
         yield None
@@ -78,6 +82,15 @@ class DummyPersistentObjectPool:
         return self
     def __exit__(self, *args):
         pass
+
+
+class Player(PersistentObject):
+
+    y = GAME_HEIGHT - 1
+
+    def __init__(self, *args, **kw):
+        self.x = GAME_WIDTH // 2
+        self.timer = 1
 
 
 class PMInvaders2(object):
@@ -111,8 +124,7 @@ class PMInvaders2(object):
                 dx=1,
                 dy=0)
         if 'player' not in pop.root:
-            pop.root['player'] = self.pop.new(PersistentDict,
-                x=GAME_WIDTH // 2, timer=1)
+            pop.root['player'] = self.pop.new(Player)
         if 'aliens' not in pop.root:
             pop.root['aliens'] = self.pop.new(PersistentList)
         if 'bullets' not in pop.root:
@@ -252,8 +264,8 @@ class PMInvaders2(object):
 
     def move_aliens(self):
         aliens = self.root['aliens']
-        player = self.root['player']
         state = self.root['state']
+        player = self.root['player']
         dx = state['dx']
         dy = state['dy']
         if not aliens:
@@ -264,7 +276,7 @@ class PMInvaders2(object):
                 alien['y'] += dy
             if dx:
                 alien['x'] += dx
-            if alien['y'] >= PLAYER_Y:
+            if alien['y'] >= player.y:
                 event = EVENT_PLAYER_KILLED
             elif (dy == 0
                   and alien['x'] >= GAME_WIDTH - 2
@@ -324,20 +336,20 @@ class PMInvaders2(object):
     def process_player(self, ch):
         with self.pop.transaction():
             player = self.root['player']
-            player['timer'] -= 1
+            player.timer -= 1
             if ch in (CH_O, curses.KEY_LEFT):
-                dstx = player['x'] - 1
+                dstx = player.x - 1
                 if dstx:
-                    player['x'] = dstx
+                    player.x = dstx
             elif ch in (CH_P, curses.KEY_RIGHT):
-                dstx = player['x'] + 1
+                dstx = player.x + 1
                 if dstx != GAME_WIDTH:
-                    player['x'] = dstx
-            elif ch == CH_SP and player['timer'] <= 0:
-                player['timer'] = MAX_PLAYER_TIMER
+                    player.x = dstx
+            elif ch == CH_SP and player.timer <= 0:
+                player.timer = MAX_PLAYER_TIMER
                 self.root['bullets'].append(self.pop.new(PersistentDict,
-                    x=player['x'], y=PLAYER_Y-1, timer=1))
-        self.screen.addch(PLAYER_Y, player['x'],
+                    x=player.x, y=player.y-1, timer=1))
+        self.screen.addch(player.y, player.x,
                           curses.ACS_DIAMOND,
                           curses.color_pair(C_PLAYER))
 
