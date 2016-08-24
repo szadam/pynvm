@@ -93,6 +93,13 @@ class Player(PersistentObject):
         self.timer = 1
 
 
+class Alien(PersistentObject):
+
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+
 class PMInvaders2(object):
 
     closed = True
@@ -235,7 +242,7 @@ class PMInvaders2(object):
         aliens = self.root['aliens']
         for x in range(ALIENS_COL):
             for y in range(ALIENS_ROW):
-                aliens.append(self.pop.new(PersistentDict,
+                aliens.append(self.pop.new(Alien,
                               x=GAME_WIDTH // 2 - ALIENS_COL + x * 2, y=y + 3))
 
     def new_level(self):
@@ -273,14 +280,14 @@ class PMInvaders2(object):
         event = None
         for alien in aliens:
             if dy:
-                alien['y'] += dy
+                alien.y += dy
             if dx:
-                alien['x'] += dx
-            if alien['y'] >= player.y:
+                alien.x += dx
+            if alien.y >= player.y:
                 event = EVENT_PLAYER_KILLED
             elif (dy == 0
-                  and alien['x'] >= GAME_WIDTH - 2
-                  or alien['x'] <= 2):
+                  and alien.x >= GAME_WIDTH - 2
+                  or alien.x <= 2):
                 event = EVENT_BOUNCE
         return event
 
@@ -306,15 +313,15 @@ class PMInvaders2(object):
                 elif state['dy']:
                     state['dy'] = 0
         for alien in self.root['aliens']:
-            self.screen.addch(alien['y'], alien['x'],
+            self.screen.addch(alien.y, alien.x,
                               curses.ACS_DIAMOND, curses.color_pair(C_ALIEN))
 
     def process_collision(self, bullet):
         aliens = self.root['aliens']
         with self.pop.transaction():
             for alien in list(aliens):
-                if (bullet['x'] == alien['x']
-                        and bullet['y'] == alien['y']):
+                if (bullet['x'] == alien.x
+                        and bullet['y'] == alien.y):
                     self.update_score(1)
                     aliens.remove(alien)
                     return True
