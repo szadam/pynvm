@@ -14,12 +14,12 @@ class PersistentList(abc.MutableSequence):
 
     # XXX locking!
     # XXX All bookkeeping attrs should be _v_xxxx so that all other attrs
-    #     (other than __manager__) can be made persistent.
+    #     (other than _p_mm) can be made persistent.
 
     def __init__(self, *args, **kw):
-        if '__manager__' not in kw:
-            raise ValueError("__manager__ is required")
-        mm = self.__manager__ = kw.pop('__manager__')
+        if '_p_mm' not in kw:
+            raise ValueError("_p_mm is required")
+        mm = self._p_mm = kw.pop('_p_mm')
         if '_oid' not in kw:
             with mm.transaction():
                 # XXX Will want to implement a freelist here, like CPython
@@ -49,14 +49,14 @@ class PersistentList(abc.MutableSequence):
 
     @property
     def _items(self):
-        mm = self.__manager__
+        mm = self._p_mm
         ob_items = mm.otuple(self._body.ob_items)
         if ob_items == mm.OID_NULL:
             return None
         return ffi.cast('PObjPtr *', mm.direct(ob_items))
 
     def _resize(self, newsize):
-        mm = self.__manager__
+        mm = self._p_mm
         allocated = self._allocated
         # Only realloc if we don't have enough space already.
         if (allocated >= newsize and newsize >= allocated >> 1):
@@ -86,7 +86,7 @@ class PersistentList(abc.MutableSequence):
             ffi.cast('PVarObject *', self._body).ob_size = newsize
 
     def insert(self, index, value):
-        mm = self.__manager__
+        mm = self._p_mm
         size = self._size
         newsize = size + 1
         with mm.transaction():
@@ -120,7 +120,7 @@ class PersistentList(abc.MutableSequence):
         return index
 
     def __setitem__(self, index, value):
-        mm = self.__manager__
+        mm = self._p_mm
         index = self._normalize_index(index)
         items = self._items
         with mm.transaction():
@@ -132,7 +132,7 @@ class PersistentList(abc.MutableSequence):
             mm.incref(v_oid)
 
     def __delitem__(self, index):
-        mm = self.__manager__
+        mm = self._p_mm
         index = self._normalize_index(index)
         size = self._size
         newsize = size - 1
@@ -148,7 +148,7 @@ class PersistentList(abc.MutableSequence):
     def __getitem__(self, index):
         index = self._normalize_index(index)
         items = self._items
-        return self.__manager__.resurrect(items[index])
+        return self._p_mm.resurrect(items[index])
 
     def __len__(self):
         return self._size
@@ -176,7 +176,7 @@ class PersistentList(abc.MutableSequence):
             return not self == other
 
     def clear(self):
-        mm = self.__manager__
+        mm = self._p_mm
         if self._size == 0:
             return
         items = self._items

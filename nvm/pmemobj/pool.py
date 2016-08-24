@@ -450,12 +450,12 @@ class MemoryManager(object):
     def new(self, typ, *args, **kw):
         """Create a new instance of typ using args and kw, managed by this pool.
 
-        typ must accept a __manager__ keyword argument and use the supplied
+        typ must accept a _p_mm keyword argument and use the supplied
         MemoryManager for all persistent memory access.
         """
         log.debug('new: %s, %s, %s', typ, args, kw)
         obj = typ.__new__(typ)
-        obj.__init__(*args, __manager__=self, **kw)
+        obj.__init__(*args, _p_mm=self, **kw)
         return obj
 
     def persist(self, obj):
@@ -465,7 +465,7 @@ class MemoryManager(object):
             return self._obj_cache.oid_from_obj(obj)
         except KeyError:
             pass
-        if hasattr(obj, '__manager__'):
+        if hasattr(obj, '_p_mm'):
             tlog.debug('Persistent object: %s %s', obj._oid, obj)
             self._obj_cache.cache(obj._oid, obj)
             return obj._oid
@@ -505,7 +505,7 @@ class MemoryManager(object):
             # It must be a Persistent type.
             cls = _find_class_from_string(cls_str)
             obj = cls.__new__(cls)
-            obj.__init__(__manager__=self, _oid=oid)
+            obj.__init__(_p_mm=self, _oid=oid)
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)

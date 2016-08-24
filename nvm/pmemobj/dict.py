@@ -61,11 +61,11 @@ class PersistentDict(abc.MutableMapping):
     # XXX locking
 
     def __init__(self, *args, **kw):
-        if '__manager__' not in kw:
-            raise ValueError('__manager__ is required')
-        # XXX __manager__ could be a legit key...need a method to set
-        # __manager__ instead, which will then finish the __init__.
-        mm = self.__manager__ = kw.pop('__manager__')
+        if '_p_mm' not in kw:
+            raise ValueError('_p_mm is required')
+        # XXX _p_mm could be a legit key...need a method to set
+        # _p_mm instead, which will then finish the __init__.
+        mm = self._p_mm = kw.pop('_p_mm')
         if '_oid' not in kw:
             with mm.transaction():
                 # XXX will want to implement a freelist here.
@@ -93,7 +93,7 @@ class PersistentDict(abc.MutableMapping):
         else:
             self._oid = kw.pop('_oid')
             if args or kw:
-                raise TypeError("Only __manager__ and _oid arguments are valid",
+                raise TypeError("Only _p_mm and _oid arguments are valid",
                                 " for resurrection, not {}".format((args, kw)))
             self._body = ffi.cast('PDictObject *', mm.direct(self._oid))
 
@@ -101,7 +101,7 @@ class PersistentDict(abc.MutableMapping):
 
     @property
     def _keys(self):
-        mm = self.__manager__
+        mm = self._p_mm
         keys_oid = mm.otuple(self._body.ma_keys)
         return ffi.cast('PDictKeysObject *', mm.direct(keys_oid))
 
@@ -110,7 +110,7 @@ class PersistentDict(abc.MutableMapping):
 
     def _new_keys_object(self, size):
         assert size >= MIN_SIZE_SPLIT
-        mm = self.__manager__
+        mm = self._p_mm
         with mm.transaction():
             dk_oid = mm.malloc(ffi.sizeof('PDictKeysObject')
                                + ffi.sizeof('PDictKeyEntry') * (size - 1),
@@ -129,7 +129,7 @@ class PersistentDict(abc.MutableMapping):
         return dk_oid
 
     def _free_keys_object(self, oid):
-        mm = self.__manager__
+        mm = self._p_mm
         dk = ffi.cast('PDictKeysObject *', mm.direct(oid))
         ep = ffi.cast('PDictKeyEntry *', ffi.addressof(dk.dk_entries[0]))
         with mm.transaction():
@@ -140,7 +140,7 @@ class PersistentDict(abc.MutableMapping):
 
     def _lookdict(self, key, khash):
         # Generalized key lookup method.
-        mm = self.__manager__
+        mm = self._p_mm
         while True:
             keys_oid = mm.otuple(self._body.ma_keys)
             keys = ffi.cast('PDictKeysObject *', mm.direct(keys_oid))
@@ -186,7 +186,7 @@ class PersistentDict(abc.MutableMapping):
 
     def _find_empty_slot(self, key, khash):
         # Find slot from hash when key is not in dict.
-        mm = self.__manager__
+        mm = self._p_mm
         keys = self._keys
         mask = keys.dk_size - 1
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
@@ -205,7 +205,7 @@ class PersistentDict(abc.MutableMapping):
         # assuming we always have a combined dict.  We copy the keys and values
         # into a new dict structure and free the old one.  We don't touch the
         # refcounts.
-        mm = self.__manager__
+        mm = self._p_mm
         minused = self._growth_rate()
         newsize = MIN_SIZE_COMBINED
         while newsize <= minused and newsize > 0:
@@ -235,7 +235,7 @@ class PersistentDict(abc.MutableMapping):
 
     def _dumpdict(self):
         # This is for debugging.
-        mm = self.__manager__
+        mm = self._p_mm
         keys = self._keys
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
         log.debug('size: %s', keys.dk_size)
@@ -250,7 +250,7 @@ class PersistentDict(abc.MutableMapping):
     def __setitem__(self, key, value):
         # This is modeled on CPython's insertdict.
         khash = fixed_hash(key)
-        mm = self.__manager__
+        mm = self._p_mm
         keys = self._keys
         ep = self._lookdict(key, khash)
         with mm.transaction():
@@ -288,16 +288,16 @@ class PersistentDict(abc.MutableMapping):
             assert mm.otuple(ep.me_key) not in (mm.OID_NULL, DUMMY)
 
     def __getitem__(self, key):
-        mm = self.__manager__
+        mm = self._p_mm
         khash = fixed_hash(key)
         ep = self._lookdict(key, khash)
         if ep is None or mm.otuple(ep.me_value) == mm.OID_NULL:
             raise KeyError(key)
-        mm = self.__manager__
-        return self.__manager__.resurrect(ep.me_value)
+        mm = self._p_mm
+        return self._p_mm.resurrect(ep.me_value)
 
     def __delitem__(self, key):
-        mm = self.__manager__
+        mm = self._p_mm
         khash = fixed_hash(key)
         ep = self._lookdict(key, khash)
         if ep is None or mm.otuple(ep.me_value) == mm.OID_NULL:
@@ -312,7 +312,7 @@ class PersistentDict(abc.MutableMapping):
             mm.decref(old_key_oid)
 
     def __iter__(self):
-        mm = self.__manager__
+        mm = self._p_mm
         keys = self._keys
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
         for i in range(keys.dk_size):
@@ -333,7 +333,7 @@ class PersistentDict(abc.MutableMapping):
     # Additional methods required by the pmemobj API.
 
     def _traverse(self):
-        mm = self.__manager__
+        mm = self._p_mm
         keys = self._keys
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
         for i in range(keys.dk_size):
@@ -345,10 +345,10 @@ class PersistentDict(abc.MutableMapping):
             yield mm.otuple(ep.me_value)
 
     def _substructures(self):
-        return ((self.__manager__.otuple(self._body.ma_keys),
+        return ((self._p_mm.otuple(self._body.ma_keys),
                  PDICTKEYSOBJECT_TYPE_NUM),
                )
 
     def _deallocate(self):
         self.clear()
-        self.__manager__.free(self._body.ma_keys)
+        self._p_mm.free(self._body.ma_keys)
