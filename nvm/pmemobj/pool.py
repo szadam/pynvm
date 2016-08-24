@@ -419,9 +419,8 @@ class MemoryManager(object):
         """
         with self.transaction():
             # Pre-fill first two elements; they are handled as special cases.
-            type_table = PersistentList(
-                [_class_string(PersistentList), _class_string(str)],
-                __manager__=self)
+            type_table = self.new(PersistentList,
+                [_class_string(PersistentList), _class_string(str)])
             self.incref(type_table._oid)
             self._obj_cache.cache_transactionally(type_table._oid, type_table)
         self._type_table = type_table
