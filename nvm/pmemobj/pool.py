@@ -479,13 +479,11 @@ class MemoryManager(object):
         obj_ptr = ffi.cast('PObject *', self.direct(oid))
         type_code = obj_ptr.ob_type
         # The special cases are to avoid infinite regress in the type table.
+        klass = None
         if type_code == 0:
-            obj = PersistentList(__manager__=self, _oid=oid)
-            self._obj_cache.cache(oid, obj)
-            log.debug('resurrect PersistentList: %s %r', oid, obj)
-            return obj
-        if type_code == 1:
-            cls_str = 'builtins:str'
+            cls_str = _class_string(PersistentList)
+        elif type_code == 1:
+            cls_str = _class_string(str)
         else:
             cls_str = self._type_table[type_code]
         resurrector = '_resurrect_' + cls_str.replace(':', '_')
