@@ -601,8 +601,8 @@ class MemoryManager(object):
         with self.transaction():
             # XXX could have a type cache so we don't have to resurrect here.
             obj = self.resurrect(oid)
-            if hasattr(obj, '_deallocate'):
-                obj._deallocate()
+            if hasattr(obj, '_p_deallocate'):
+                obj._p_deallocate()
             self.free(oid)
         if self._track_free is not None:
             self._track_free.add(oid)
@@ -781,7 +781,7 @@ class PersistentObjectPool(object):
         If debug is true, the debug logging output will include reprs of the
         objects encountered, all orphans will be logged as warnings, and
         additional checks will be done for orphaned or invalid data structures
-        (those reported by a Persistent object's _substructures method).
+        (those reported by a Persistent object's _p_substructures method).
 
         """
         # XXX CPython uses a three generation GC in order to obtain more or
@@ -826,7 +826,7 @@ class PersistentObjectPool(object):
                             log.debug('gc: orphan: %s %s %r',
                                       oid, obj.ob_refcnt, self.mm.resurrect(oid))
                         orphans.add(oid)
-                    elif hasattr(typ, '_traverse'):
+                    elif hasattr(typ, '_p_traverse'):
                         if debug:
                             log.debug('gc: container: %s %s %r',
                                       oid, obj.ob_refcnt, self.mm.resurrect(oid))
@@ -859,7 +859,7 @@ class PersistentObjectPool(object):
                 log.debug("Checking substructure integrity")
                 for container_oid in containers:
                     container = self.mm.resurrect(container_oid)
-                    for oid, type_num in container._substructures():
+                    for oid, type_num in container._p_substructures():
                         oid = self.mm.otuple(oid)
                         if oid == self.mm.OID_NULL:
                             continue
@@ -886,7 +886,7 @@ class PersistentObjectPool(object):
             live = [self.mm._type_table._p_oid]
             root_oid = self.mm.otuple(self._pmem_root.root_object)
             root = self.mm.resurrect(root_oid)
-            if hasattr(root, '_traverse'):
+            if hasattr(root, '_p_traverse'):
                 containers.remove(root_oid)
                 live.append(root_oid)
             elif root is not None:
@@ -897,7 +897,7 @@ class PersistentObjectPool(object):
                 if debug:
                     log.debug('gc: checking live %s %r',
                               oid, self.mm.resurrect(oid))
-                for sub_oid in self.mm.resurrect(oid)._traverse():
+                for sub_oid in self.mm.resurrect(oid)._p_traverse():
                     sub_key = self.mm.otuple(sub_oid)
                     if sub_key in containers:
                         if debug:

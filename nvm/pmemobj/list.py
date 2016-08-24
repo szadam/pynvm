@@ -192,13 +192,13 @@ class PersistentList(abc.MutableSequence):
 
     # Additional methods required by the pmemobj API.
 
-    def _traverse(self):
+    def _p_traverse(self):
         items = self._items
         for i in range(len(self)):
             yield items[i]
 
-    def _substructures(self):
+    def _p_substructures(self):
         return ((self._body.ob_items, LIST_POBJPTR_ARRAY_TYPE_NUM),)
 
-    def _deallocate(self):
+    def _p_deallocate(self):
         self.clear()

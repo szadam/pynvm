@@ -332,7 +332,7 @@ class PersistentDict(abc.MutableMapping):
 
     # Additional methods required by the pmemobj API.
 
-    def _traverse(self):
+    def _p_traverse(self):
         mm = self._p_mm
         keys = self._keys
         ep0 = ffi.cast('PDictKeyEntry *', ffi.addressof(keys.dk_entries[0]))
@@ -344,11 +344,11 @@ class PersistentDict(abc.MutableMapping):
             yield mm.otuple(ep.me_key)
             yield mm.otuple(ep.me_value)
 
-    def _substructures(self):
+    def _p_substructures(self):
         return ((self._p_mm.otuple(self._body.ma_keys),
                  PDICTKEYSOBJECT_TYPE_NUM),
                )
 
-    def _deallocate(self):
+    def _p_deallocate(self):
         self.clear()
         self._p_mm.free(self._body.ma_keys)
