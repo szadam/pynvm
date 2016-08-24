@@ -487,17 +487,17 @@ class MemoryManager(object):
         else:
             cls_str = self._type_table[type_code]
         resurrector = '_resurrect_' + cls_str.replace(':', '_')
-        if not hasattr(self, resurrector):
-            # It must be a persistent type.
+        if hasattr(self, resurrector):
+            obj = getattr(self, resurrector)(obj_ptr)
+            log.debug('resurrect %r: immutable type (%r): %r',
+                      oid, resurrector, obj)
+        else:
+            # It must be a Persistent type.
             cls = _find_class_from_string(cls_str)
-            res = cls(__manager__=self, _oid=oid)
+            obj = cls(__manager__=self, _oid=oid)
             log.debug('resurrect %r: persistent type (%r): %r',
-                      oid, cls_str, res)
-            return res
-        obj = getattr(self, resurrector)(obj_ptr)
+                      oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
-        log.debug('resurrect %r: immutable type (%r): %r',
-                  oid, resurrector, obj)
         return obj
 
     def _persist_builtins_str(self, s):
