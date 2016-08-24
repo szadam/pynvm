@@ -448,6 +448,17 @@ class MemoryManager(object):
             log.debug('new type_code for %s: %r', cls_str, code)
             return code
 
+    def new(self, typ, *args, **kw):
+        """Create a new instance of typ using args and kw, managed by this pool.
+
+        typ must accept a __manager__ keyword argument and use the supplied
+        MemoryManager for all persistent memory access.
+        """
+        log.debug('new: %s, %s, %s', typ, args, kw)
+        obj = typ.__new__(typ)
+        obj.__init__(*args, __manager__=self, **kw)
+        return obj
+
     def persist(self, obj):
         """Store obj in persistent memory and return its oid."""
         log.debug('persist: %r', obj)
@@ -494,7 +505,8 @@ class MemoryManager(object):
         else:
             # It must be a Persistent type.
             cls = _find_class_from_string(cls_str)
-            obj = cls(__manager__=self, _oid=oid)
+            obj = cls.__new__(cls)
+            obj.__init__(__manager__=self, _oid=oid)
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
@@ -751,11 +763,9 @@ class PersistentObjectPool(object):
     def new(self, typ, *args, **kw):
         """Create a new instance of typ using args and kw, managed by this pool.
 
-        typ must accept a __manager__ keyword argument and use the supplied
-        MemoryManager for all persistent memory access.
+        typ must support the Persistent API.
         """
-        log.debug('new: %s, %s, %s', typ, args, kw)
-        return typ(*args, __manager__=self.mm, **kw)
+        return self.mm.new(typ, *args, **kw)
 
     # If I didn't have to support python2 I'd make debug keyword only.
     def gc(self, debug=None):
