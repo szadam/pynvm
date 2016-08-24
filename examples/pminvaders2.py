@@ -99,12 +99,22 @@ class Alien(PersistentObject):
         self.x = x
         self.y = y
 
+
 class Bullet(PersistentObject):
 
     def __init__(self, x, y):
         self.x = x
         self.y = y
         self.timer = 1
+
+
+class Star(PersistentObject):
+
+    def __init__(self, x, y, c, timer):
+        self.x = x
+        self.y = y
+        self.c = c
+        self.timer = timer
 
 
 class PMInvaders2(object):
@@ -171,7 +181,7 @@ class PMInvaders2(object):
     def create_star(self, x, y):
         c = '*' if randint(0, 1) else '.'
         timer = MAX_STAR1_TIMER if c == '.' else MAX_STAR2_TIMER
-        return self.pop.new(PersistentDict, dict(x=x, y=y, c=c, timer=timer))
+        return self.pop.new(Star, x=x, y=y, c=c, timer=timer)
 
     def create_stars(self):
         # C version prepends to list; I'm appending so list is reversed.  Our
@@ -181,24 +191,23 @@ class PMInvaders2(object):
                 self.root['stars'].append(self.create_star(x, 1))
 
     def draw_star(self, star):
-        self.screen.addch(star['y'], star['x'], star['c'],
-                          curses.color_pair(C_STAR))
+        self.screen.addch(star.y, star.x, star.c, curses.color_pair(C_STAR))
 
     def process_stars(self):
         new_line = False
         with self.pop.transaction():
             stars = self.root['stars']
             for star in list(stars):
-                star['timer'] -= 1
-                if not star['timer']:
-                    if star['c'] == '.':
-                        star['timer'] = MAX_STAR1_TIMER
+                star.timer -= 1
+                if not star.timer:
+                    if star.c == '.':
+                        star.timer = MAX_STAR1_TIMER
                         new_line = True
                     else:
-                        star['timer'] = MAX_STAR2_TIMER
-                    star['y'] += 1
+                        star.timer = MAX_STAR2_TIMER
+                    star.y += 1
                 self.draw_star(star)
-                if star['y'] >= GAME_HEIGHT-1:
+                if star.y >= GAME_HEIGHT-1:
                     stars.remove(star)
             if new_line:
                 self.create_stars()
