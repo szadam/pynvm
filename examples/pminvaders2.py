@@ -130,6 +130,71 @@ class Star(PersistentObject):
         self.timer = timer
 
 
+class Screen(object):
+
+    def __init__(self):
+        screen = self.screen = curses.initscr()
+        self.closed = False
+        curses.start_color()
+        curses.init_pair(C_PLAYER, curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(C_ALIEN, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(C_BULLET, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(C_STAR, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.init_pair(C_INTRO, curses.COLOR_BLUE, curses.COLOR_BLACK)
+        screen.nodelay(True)
+        curses.curs_set(0)
+        screen.keypad(True)
+
+    def draw_border(self):
+        screen = self.screen
+        for x in range(GAME_WIDTH+1):
+            screen.addch(0, x, curses.ACS_HLINE)
+            screen.addch(GAME_HEIGHT, x, curses.ACS_HLINE)
+        for y in range(GAME_HEIGHT+1):
+            screen.addch(y, 0, curses.ACS_VLINE)
+            screen.addch(y, GAME_WIDTH, curses.ACS_VLINE)
+        screen.addch(0, 0, curses.ACS_ULCORNER)
+        screen.addch(GAME_HEIGHT, 0, curses.ACS_LLCORNER)
+        screen.addch(0, GAME_WIDTH, curses.ACS_URCORNER)
+        screen.addch(GAME_HEIGHT, GAME_WIDTH, curses.ACS_LRCORNER)
+
+    def printw(self, y, x, string):
+        for i in range(x, x + len(string)):
+            self.screen.addch(y, i, string[i - x])
+
+    def draw_title(self):
+        screen = self.screen
+        x = (GAME_WIDTH -40) // 2
+        y = GAME_HEIGHT // 2 - 2
+        screen.attron(curses.color_pair(C_INTRO))
+        self.printw(y + 0, x, "#### #   # ### #   # #   #     ###   ###")
+        self.printw(y + 1, x, "#  # ## ##  #  ##  # #   #       #   # #")
+        self.printw(y + 2, x, "#### # # #  #  # # #  # #      ###   # #")
+        self.printw(y + 3, x, "#    # # #  #  #  ##  # #      #     # #")
+        self.printw(y + 4, x, "#    #   # ### #   #   #       ### # ###")
+        screen.attroff(curses.color_pair(C_INTRO))
+        self.printw(y + 6, x, "      Press 'space' to resume           ")
+        self.printw(y + 7, x, "      Press 'q' to quit                 ")
+
+    def draw_score(self, level, score, high_score):
+        self.printw(1, 1, "Level: {:5} Score: {} | {}".format(
+                    level,
+                    score,
+                    high_score))
+
+    def erase(self):
+        self.screen.erase()
+
+    def getch(self):
+        return self.screen.getch()
+
+    def refresh(self):
+        self.screen.refresh()
+
+    def addch(self, y, x, c, color):
+        self.screen.addch(y, x, c, color)
+
+
 class PMInvaders2(PersistentObject):
 
     _v_closed = True
@@ -149,18 +214,7 @@ class PMInvaders2(PersistentObject):
         self.stars = self._p_mm.new(PersistentList)
 
     def _v_init(self):
-        # curses init
-        screen = self._v_screen = curses.initscr()
-        self._v_closed = False
-        curses.start_color()
-        curses.init_pair(C_PLAYER, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(C_ALIEN, curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(C_BULLET, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        curses.init_pair(C_STAR, curses.COLOR_WHITE, curses.COLOR_BLACK)
-        curses.init_pair(C_INTRO, curses.COLOR_BLUE, curses.COLOR_BLACK)
-        screen.nodelay(True)
-        curses.curs_set(0)
-        screen.keypad(True)
+        self._v_screen = Screen()
 
     def close(self):
         curses.endwin()
@@ -169,19 +223,6 @@ class PMInvaders2(PersistentObject):
     def __del__(self):
         if not self._v_closed:
             self.close()
-
-    def draw_border(self):
-        screen = self._v_screen
-        for x in range(GAME_WIDTH+1):
-            screen.addch(0, x, curses.ACS_HLINE)
-            screen.addch(GAME_HEIGHT, x, curses.ACS_HLINE)
-        for y in range(GAME_HEIGHT+1):
-            screen.addch(y, 0, curses.ACS_VLINE)
-            screen.addch(y, GAME_WIDTH, curses.ACS_VLINE)
-        screen.addch(0, 0, curses.ACS_ULCORNER)
-        screen.addch(GAME_HEIGHT, 0, curses.ACS_LLCORNER)
-        screen.addch(0, GAME_WIDTH, curses.ACS_URCORNER)
-        screen.addch(GAME_HEIGHT, GAME_WIDTH, curses.ACS_LRCORNER)
 
     def create_star(self, x, y):
         c = '*' if randint(0, 1) else '.'
@@ -217,43 +258,19 @@ class PMInvaders2(PersistentObject):
             if new_line:
                 self.create_stars()
 
-    def printw(self, y, x, string):
-        for i in range(x, x + len(string)):
-            self._v_screen.addch(y, i, string[i - x])
-
-    def draw_title(self):
-        screen = self._v_screen
-        x = (GAME_WIDTH -40) // 2
-        y = GAME_HEIGHT // 2 - 2
-        screen.attron(curses.color_pair(C_INTRO))
-        self.printw(y + 0, x, "#### #   # ### #   # #   #     ###   ###")
-        self.printw(y + 1, x, "#  # ## ##  #  ##  # #   #       #   # #")
-        self.printw(y + 2, x, "#### # # #  #  # # #  # #      ###   # #")
-        self.printw(y + 3, x, "#    # # #  #  #  ##  # #      #     # #")
-        self.printw(y + 4, x, "#    #   # ### #   #   #       ### # ###")
-        screen.attroff(curses.color_pair(C_INTRO))
-        self.printw(y + 6, x, "      Press 'space' to resume           ")
-        self.printw(y + 7, x, "      Press 'q' to quit                 ")
-
     def intro_loop(self):
         exit = None
         while exit not in (CH_Q, CH_SP):
-            exit = self._v_screen.getch()
             self._v_screen.erase()
-            self.draw_border()
+            self._v_screen.draw_border()
             if not self.stars:
                 self.create_stars()
             self.process_stars()
-            self.draw_title()
+            self._v_screen.draw_title()
             sleep(STEP)
             self._v_screen.refresh()
+            exit = self._v_screen.getch()
         return exit == CH_Q
-
-    def draw_score(self):
-        self.printw(1, 1, "Level: {:5} Score: {} | {}".format(
-                    self.level,
-                    self.score,
-                    self.high_score))
 
     def remove_aliens(self):
         self.aliens.clear()
@@ -381,8 +398,8 @@ class PMInvaders2(PersistentObject):
         while ch != CH_Q:
             ch = self._v_screen.getch()
             self._v_screen.erase()
-            self.draw_score()
-            self.draw_border()
+            self._v_screen.draw_score(self.level, self.score, self.high_score)
+            self._v_screen.draw_border()
             with self._p_mm.transaction():
                 if self.new_level:
                     self.create_new_level()
