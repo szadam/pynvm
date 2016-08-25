@@ -79,7 +79,7 @@ class Dummy(object):
         def transaction():
             yield None
     def _v_init(self):
-        pass
+        self._v_screen = Screen()
 class DummyPersistentObjectPool:
     def __init__(self, *args, **kw):
         self.root = None
@@ -123,11 +123,52 @@ class Bullet(PersistentObject):
 
 class Star(PersistentObject):
 
-    def __init__(self, x, y, c, timer):
+    def __init__(self, x, y):
         self.x = x
         self.y = y
-        self.c = c
-        self.timer = timer
+        self.c = '*' if randint(0, 1) else '.'
+        self.timer = MAX_STAR1_TIMER if self.c == '.' else MAX_STAR2_TIMER
+
+    def timer_step(self):
+        new_line = False
+        self.timer -= 1
+        if not self.timer:
+            if self.c == '.':
+                self.timer = MAX_STAR1_TIMER
+                new_line = True
+            else:
+                self.timer = MAX_STAR2_TIMER
+            self.y += 1
+        return new_line
+
+    def draw(self, screen):
+        screen.addch(self.y, self.x, self.c, curses.color_pair(C_STAR))
+
+
+class Stars(PersistentObject):
+
+    def __init__(self):
+        self.stars = self._p_mm.new(PersistentList)
+        self.create_stars()
+
+    def create_stars(self):
+        for x in range(1, GAME_WIDTH):
+            if randrange(0, 100) < 4:
+                self.stars.append(self._p_mm.new(Star, x, 1))
+
+    def process(self, screen):
+        new_line = False
+        with self._p_mm.transaction():
+            if not any(star.c == '.' for star in self.stars):
+                self.create_stars()
+            for star in list(self.stars):
+                if star.timer_step():
+                    new_line = True
+                star.draw(screen)
+                if star.y >= GAME_HEIGHT-1:
+                    self.stars.remove(star)
+            if new_line:
+                self.create_stars()
 
 
 class Screen(object):
@@ -207,7 +248,6 @@ class Screen(object):
 class PMInvaders2(PersistentObject):
 
     def __init__(self):
-        # Game init
         self.timer = 1
         self.score = 0
         self.high_score = 0
@@ -218,7 +258,7 @@ class PMInvaders2(PersistentObject):
         self.player = self._p_mm.new(Player)
         self.aliens = self._p_mm.new(PersistentList)
         self.bullets = self._p_mm.new(PersistentList)
-        self.stars = self._p_mm.new(PersistentList)
+        self.stars = self._p_mm.new(Stars)
 
     def _v__init__(self):
         self._v_screen = Screen()
@@ -226,48 +266,12 @@ class PMInvaders2(PersistentObject):
     def close(self):
         self._v_screen.close()
 
-    def create_star(self, x, y):
-        c = '*' if randint(0, 1) else '.'
-        timer = MAX_STAR1_TIMER if c == '.' else MAX_STAR2_TIMER
-        return self._p_mm.new(Star, x=x, y=y, c=c, timer=timer)
-
-    def create_stars(self):
-        # C version prepends to list; I'm appending so list is reversed.  Our
-        # append is as atomic as the C code's linked list pointer assignment.
-        for x in range(1, GAME_WIDTH):
-            if randrange(0, 100) < 4:
-                self.stars.append(self.create_star(x, 1))
-
-    def draw_star(self, star):
-        self._v_screen.addch(star.y, star.x, star.c, curses.color_pair(C_STAR))
-
-    def process_stars(self):
-        new_line = False
-        with self._p_mm.transaction():
-            stars = self.stars
-            for star in list(stars):
-                star.timer -= 1
-                if not star.timer:
-                    if star.c == '.':
-                        star.timer = MAX_STAR1_TIMER
-                        new_line = True
-                    else:
-                        star.timer = MAX_STAR2_TIMER
-                    star.y += 1
-                self.draw_star(star)
-                if star.y >= GAME_HEIGHT-1:
-                    stars.remove(star)
-            if new_line:
-                self.create_stars()
-
     def intro_loop(self):
         exit = None
         while exit not in (CH_Q, CH_SP):
             self._v_screen.erase()
             self._v_screen.draw_border()
-            if not self.stars:
-                self.create_stars()
-            self.process_stars()
+            self.stars.process(self._v_screen)
             self._v_screen.draw_title()
             sleep(STEP)
             self._v_screen.refresh()
