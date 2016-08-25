@@ -112,6 +112,53 @@ class Alien(PersistentObject):
         self.x = x
         self.y = y
 
+    def draw(self, screen):
+        screen.addch(self.y, self.x,
+                     curses.ACS_DIAMOND, curses.color_pair(C_ALIEN))
+
+
+class Aliens(PersistentObject):
+
+    def __init__(self):
+        self.aliens = self._p_mm.new(PersistentList)
+
+    def create_aliens(self):
+        for grid_x in range(ALIENS_COL):
+            for grid_y in range(ALIENS_ROW):
+                self.aliens.append(self._p_mm.new(Alien,
+                                   x=GAME_WIDTH // 2 - ALIENS_COL + grid_x * 2,
+                                   y=grid_y + 3))
+
+    def clear(self):
+        self.aliens.clear()
+
+    def move(self, dx, dy, player_y):
+        if not self.aliens:
+            return EVENT_ALIENS_KILLED
+        event = None
+        for alien in self.aliens:
+            if dy:
+                alien.y += dy
+            if dx:
+                alien.x += dx
+            if alien.y >= player_y:
+                event = EVENT_PLAYER_KILLED
+            elif (dy == 0
+                  and alien.x >= GAME_WIDTH - 2
+                  or alien.x <= 2):
+                event = EVENT_BOUNCE
+        return event
+
+    def draw(self, screen):
+        for alien in self.aliens:
+            alien.draw(screen)
+
+    def alien_at(self, x, y):
+        return next((a for a in self.aliens if a.x==x and a.y==y), None)
+
+    def remove(self, alien):
+        self.aliens.remove(alien)
+
 
 class Bullet(PersistentObject):
 
@@ -256,7 +303,7 @@ class PMInvaders2(PersistentObject):
         self.dx = 1
         self.dy = 0
         self.player = self._p_mm.new(Player)
-        self.aliens = self._p_mm.new(PersistentList)
+        self.aliens = self._p_mm.new(Aliens)
         self.bullets = self._p_mm.new(PersistentList)
         self.stars = self._p_mm.new(Stars)
 
@@ -278,20 +325,10 @@ class PMInvaders2(PersistentObject):
             exit = self._v_screen.getch()
         return exit == CH_Q
 
-    def remove_aliens(self):
-        self.aliens.clear()
-
-    def create_aliens(self):
-        aliens = self.aliens
-        for x in range(ALIENS_COL):
-            for y in range(ALIENS_ROW):
-                aliens.append(self._p_mm.new(Alien,
-                              x=GAME_WIDTH // 2 - ALIENS_COL + x * 2, y=y + 3))
-
     def create_new_level(self):
         with self._p_mm.transaction():
-            self.remove_aliens()
-            self.create_aliens()
+            self.aliens.clear()
+            self.aliens.create_aliens()
             if self.new_level > 0 or self.level > 1:
                 self.level += self.new_level
             self.new_level = 0
@@ -310,27 +347,6 @@ class PMInvaders2(PersistentObject):
         if self.score > self.high_score:
             self.high_score = self.score
 
-    def move_aliens(self):
-        aliens = self.aliens
-        player = self.player
-        dx = self.dx
-        dy = self.dy
-        if not aliens:
-            return EVENT_ALIENS_KILLED
-        event = None
-        for alien in aliens:
-            if dy:
-                alien.y += dy
-            if dx:
-                alien.x += dx
-            if alien.y >= player.y:
-                event = EVENT_PLAYER_KILLED
-            elif (dy == 0
-                  and alien.x >= GAME_WIDTH - 2
-                  or alien.x <= 2):
-                event = EVENT_BOUNCE
-        return event
-
     def process_aliens(self):
         with self._p_mm.transaction():
             self.timer -= 1
@@ -338,7 +354,7 @@ class PMInvaders2(PersistentObject):
                 self.timer = (MAX_ALIEN_TIMER
                               - ALIEN_TIMER_LEVEL_FACTOR
                               * (self.level - 1))
-                event = self.move_aliens()
+                event = self.aliens.move(self.dx, self.dy, self.player.y)
                 if event == EVENT_ALIENS_KILLED:
                     self.new_level = 1
                 elif event == EVENT_PLAYER_KILLED:
@@ -351,20 +367,7 @@ class PMInvaders2(PersistentObject):
                     self.dx = -self.dx
                 elif self.dy:
                     self.dy = 0
-        for alien in self.aliens:
-            self._v_screen.addch(alien.y, alien.x,
-                                 curses.ACS_DIAMOND, curses.color_pair(C_ALIEN))
-
-    def process_collision(self, bullet):
-        aliens = self.aliens
-        with self._p_mm.transaction():
-            for alien in list(aliens):
-                if (bullet.x == alien.x
-                        and bullet.y == alien.y):
-                    self.update_score(1)
-                    aliens.remove(alien)
-                    return True
-        return False
+        self.aliens.draw(self._v_screen)
 
     def process_bullets(self):
         with self._p_mm.transaction():
@@ -376,7 +379,11 @@ class PMInvaders2(PersistentObject):
                 self._v_screen.addch(bullet.y, bullet.x,
                                      curses.ACS_BULLET,
                                      curses.color_pair(C_BULLET))
-                if bullet.y <= 0 or self.process_collision(bullet):
+                alien = self.aliens.alien_at(bullet.x, bullet.y)
+                if alien:
+                    self.aliens.remove(alien)
+                    self.update_score(1)
+                if alien or bullet.y <= 0:
                     self.bullets.remove(bullet)
 
     def process_player(self, ch):
