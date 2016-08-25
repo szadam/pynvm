@@ -132,6 +132,8 @@ class Star(PersistentObject):
 
 class Screen(object):
 
+    closed = True
+
     def __init__(self):
         screen = self.screen = curses.initscr()
         self.closed = False
@@ -194,10 +196,15 @@ class Screen(object):
     def addch(self, y, x, c, color):
         self.screen.addch(y, x, c, color)
 
+    def close(self):
+        if not self.closed:
+            curses.endwin()
+
+    def __del__(self):
+        self.close()
+
 
 class PMInvaders2(PersistentObject):
-
-    _v_closed = True
 
     def __init__(self):
         # Game init
@@ -217,12 +224,7 @@ class PMInvaders2(PersistentObject):
         self._v_screen = Screen()
 
     def close(self):
-        curses.endwin()
-        self._v_closed = True
-
-    def __del__(self):
-        if not self._v_closed:
-            self.close()
+        self._v_screen.close()
 
     def create_star(self, x, y):
         c = '*' if randint(0, 1) else '.'
