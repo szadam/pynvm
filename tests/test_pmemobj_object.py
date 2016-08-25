@@ -11,6 +11,10 @@ class Foo(pmemobj.PersistentObject):
     def no_fubar(self, x):
         return x + 1
 
+class Foo2(pmemobj.PersistentObject):
+    def _v__init__(self):
+        self._v_bar = 'baz'
+
 
 class TestPersistentObject(TestCase):
 
@@ -107,6 +111,14 @@ class TestPersistentObject(TestCase):
         d.foo = 10
         self.assertTrue(hasattr(d, 'foo'))
         self.assertTrue(hasattr(d, '_p_mm'))
+
+    def test__v__init__(self):
+        # We use a Foo2 here so that previous tests test having a class without
+        # a subclass-defined _v__init__.
+        d = self._make_object(Foo2)
+        self.assertEqual(d._v_bar, 'baz')
+        d = self._reload_root()
+        self.assertEqual(d._v_bar, 'baz')
 
 
 if __name__ == '__main__':

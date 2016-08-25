@@ -27,16 +27,16 @@ class PersistentObject(object):
             self._p_dict = mm.new(PersistentDict)
             d.ob_dict = self._p_dict._p_oid
             mm.incref(self._p_dict._p_oid)
-        self._v_init()
+        self._v__init__()
 
     def _p_resurrect(self, manager, oid):
         mm = self._p_mm = manager
         self._p_oid = oid
         self._p_body = ffi.cast('PObjectObject *', mm.direct(oid))
         self._p_dict = mm.resurrect(self._p_body.ob_dict)
-        self._v_init()
+        self._v__init__()
 
-    def _v_init(self):
+    def _v__init__(self):
         pass
 
     # Methods to emulate a normal class.

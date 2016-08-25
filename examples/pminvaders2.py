@@ -213,7 +213,7 @@ class PMInvaders2(PersistentObject):
         self.bullets = self._p_mm.new(PersistentList)
         self.stars = self._p_mm.new(PersistentList)
 
-    def _v_init(self):
+    def _v__init__(self):
         self._v_screen = Screen()
 
     def close(self):
