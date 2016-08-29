@@ -5,7 +5,8 @@ Version v.0.3
 -------------------------------------------------------------------------------
 Changes in this version:
 
-	* Added initial pmemobj-based object manager and a PersistentList class.
+	* Added initial pmemobj-based object manager with PersistentList and
+	  PersistentDict classes.
 
 
 Version v.0.2
