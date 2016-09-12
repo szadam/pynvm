@@ -29,6 +29,7 @@ class TestCase(unittest.TestCase):
 
     if sys.version_info[0] < 3:
         assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+        assertCountEqual = unittest.TestCase.assertItemsEqual
 
 
 def parameterize(cls):

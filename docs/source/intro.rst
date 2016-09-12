@@ -253,7 +253,7 @@ provides a full python interface.  This interface allows to you store
 Python objects persistently.
 
 This is a work in progress: currently persistence is supported only for lists
-(PersistentList), integers, strings, floats, and None.
+(PersistentList), dicts (PersistentDict), integers, strings, floats, and None.
 
 Creating a PersistentObjectPool and storing objects in it
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

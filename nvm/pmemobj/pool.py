@@ -419,13 +419,12 @@ class MemoryManager(object):
         """
         with self.transaction():
             # Pre-fill first two elements; they are handled as special cases.
-            type_table = PersistentList(
-                [_class_string(PersistentList), _class_string(str)],
-                __manager__=self)
-            self.incref(type_table._oid)
-            self._obj_cache.cache_transactionally(type_table._oid, type_table)
+            type_table = self.new(PersistentList,
+                [_class_string(PersistentList), _class_string(str)])
+            self.incref(type_table._p_oid)
+            self._obj_cache.cache_transactionally(type_table._p_oid, type_table)
         self._type_table = type_table
-        return type_table._oid
+        return type_table._p_oid
 
     def _get_type_code(self, cls):
         """Return the index into the type table for cls.
@@ -448,6 +447,18 @@ class MemoryManager(object):
             log.debug('new type_code for %s: %r', cls_str, code)
             return code
 
+    def new(self, typ, *args, **kw):
+        """Create a new instance of typ using args and kw, managed by this pool.
+
+        typ must accept a _p_mm keyword argument and use the supplied
+        MemoryManager for all persistent memory access.
+        """
+        log.debug('new: %s, %s, %s', typ, args, kw)
+        obj = typ.__new__(typ)
+        obj._p_new(self)
+        obj.__init__(*args, **kw)
+        return obj
+
     def persist(self, obj):
         """Store obj in persistent memory and return its oid."""
         log.debug('persist: %r', obj)
@@ -455,10 +466,10 @@ class MemoryManager(object):
             return self._obj_cache.oid_from_obj(obj)
         except KeyError:
             pass
-        if hasattr(obj, '__manager__'):
-            tlog.debug('Persistent object: %s %s', obj._oid, obj)
-            self._obj_cache.cache(obj._oid, obj)
-            return obj._oid
+        if hasattr(obj, '_p_mm'):
+            tlog.debug('Persistent object: %s %s', obj._p_oid, obj)
+            self._obj_cache.cache(obj._p_oid, obj)
+            return obj._p_oid
         cls_str = _class_string(obj.__class__)
         persister = '_persist_' + cls_str.replace(':', '_')
         if not hasattr(self, persister):
@@ -479,27 +490,26 @@ class MemoryManager(object):
         obj_ptr = ffi.cast('PObject *', self.direct(oid))
         type_code = obj_ptr.ob_type
         # The special cases are to avoid infinite regress in the type table.
+        klass = None
         if type_code == 0:
-            obj = PersistentList(__manager__=self, _oid=oid)
-            self._obj_cache.cache(oid, obj)
-            log.debug('resurrect PersistentList: %s %r', oid, obj)
-            return obj
-        if type_code == 1:
-            cls_str = 'builtins:str'
+            cls_str = _class_string(PersistentList)
+        elif type_code == 1:
+            cls_str = _class_string(str)
         else:
             cls_str = self._type_table[type_code]
         resurrector = '_resurrect_' + cls_str.replace(':', '_')
-        if not hasattr(self, resurrector):
-            # It must be a persistent type.
-            cls = find_class_from_string(cls_str)
-            res = cls(__manager__=self, _oid=oid)
+        if hasattr(self, resurrector):
+            obj = getattr(self, resurrector)(obj_ptr)
+            log.debug('resurrect %r: immutable type (%r): %r',
+                      oid, resurrector, obj)
+        else:
+            # It must be a Persistent type.
+            cls = _find_class_from_string(cls_str)
+            obj = cls.__new__(cls)
+            obj._p_resurrect(self, oid)
             log.debug('resurrect %r: persistent type (%r): %r',
-                      oid, cls_str, res)
-            return res
-        obj = getattr(self, resurrector)(obj_ptr)
+                      oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
-        log.debug('resurrect %r: immutable type (%r): %r',
-                  oid, resurrector, obj)
         return obj
 
     def _persist_builtins_str(self, s):
@@ -592,8 +602,8 @@ class MemoryManager(object):
         with self.transaction():
             # XXX could have a type cache so we don't have to resurrect here.
             obj = self.resurrect(oid)
-            if hasattr(obj, '_deallocate'):
-                obj._deallocate()
+            if hasattr(obj, '_p_deallocate'):
+                obj._p_deallocate()
             self.free(oid)
         if self._track_free is not None:
             self._track_free.add(oid)
@@ -753,11 +763,9 @@ class PersistentObjectPool(object):
     def new(self, typ, *args, **kw):
         """Create a new instance of typ using args and kw, managed by this pool.
 
-        typ must accept a __manager__ keyword argument and use the supplied
-        MemoryManager for all persistent memory access.
+        typ must support the Persistent API.
         """
-        log.debug('new: %s, %s, %s', typ, args, kw)
-        return typ(*args, __manager__=self.mm, **kw)
+        return self.mm.new(typ, *args, **kw)
 
     # If I didn't have to support python2 I'd make debug keyword only.
     def gc(self, debug=None):
@@ -774,7 +782,7 @@ class PersistentObjectPool(object):
         If debug is true, the debug logging output will include reprs of the
         objects encountered, all orphans will be logged as warnings, and
         additional checks will be done for orphaned or invalid data structures
-        (those reported by a Persistent object's _substructures method).
+        (those reported by a Persistent object's _p_substructures method).
 
         """
         # XXX CPython uses a three generation GC in order to obtain more or
@@ -793,7 +801,7 @@ class PersistentObjectPool(object):
         gc_counts = collections.defaultdict(int)
 
         with self.lock:
-            # Catalog all PObjects.
+            # Catalog all pmem objects.
             oid = self.mm.otuple(lib.pmemobj_first(self._pool_ptr))
             while oid != self.mm.OID_NULL:
                 type_num = lib.pmemobj_type_num(oid)
@@ -819,7 +827,7 @@ class PersistentObjectPool(object):
                             log.debug('gc: orphan: %s %s %r',
                                       oid, obj.ob_refcnt, self.mm.resurrect(oid))
                         orphans.add(oid)
-                    elif hasattr(typ, '_traverse'):
+                    elif hasattr(typ, '_p_traverse'):
                         if debug:
                             log.debug('gc: container: %s %s %r',
                                       oid, obj.ob_refcnt, self.mm.resurrect(oid))
@@ -852,7 +860,7 @@ class PersistentObjectPool(object):
                 log.debug("Checking substructure integrity")
                 for container_oid in containers:
                     container = self.mm.resurrect(container_oid)
-                    for oid, type_num in container._substructures():
+                    for oid, type_num in container._p_substructures():
                         oid = self.mm.otuple(oid)
                         if oid == self.mm.OID_NULL:
                             continue
@@ -875,11 +883,11 @@ class PersistentObjectPool(object):
                                       type_num, struct_oid, parent_oids)
 
             # Trace the object tree, removing objects that are referenced.
-            containers.remove(self.mm._type_table._oid)
-            live = [self.mm._type_table._oid]
+            containers.remove(self.mm._type_table._p_oid)
+            live = [self.mm._type_table._p_oid]
             root_oid = self.mm.otuple(self._pmem_root.root_object)
             root = self.mm.resurrect(root_oid)
-            if hasattr(root, '_traverse'):
+            if hasattr(root, '_p_traverse'):
                 containers.remove(root_oid)
                 live.append(root_oid)
             elif root is not None:
@@ -890,7 +898,7 @@ class PersistentObjectPool(object):
                 if debug:
                     log.debug('gc: checking live %s %r',
                               oid, self.mm.resurrect(oid))
-                for sub_oid in self.mm.resurrect(oid)._traverse():
+                for sub_oid in self.mm.resurrect(oid)._p_traverse():
                     sub_key = self.mm.otuple(sub_oid)
                     if sub_key in containers:
                         if debug:
