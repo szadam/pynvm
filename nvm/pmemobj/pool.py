@@ -156,6 +156,12 @@ class _ObjCache(object):
         self._persist = {}
         self._trans_resurrect = {}
         self._trans_persist = {}
+        self._singletons = {
+            None: (0, 1),
+            True: (0, 2),
+            False: (0, 3),
+            }
+        self._singleton_ids = {id(k): v for k, v in self._singletons.items()}
 
     def pkey(self, obj):
         # Use the object as the key if it is immutable (hashable) because we
@@ -165,13 +171,12 @@ class _ObjCache(object):
         return obj if getattr(obj, '__hash__', None) else ObjKey(obj)
 
     def clear(self):
-        # XXX I'm not sure we can get away with mapping OID_NULL
-        # to None here, but try it and see.
         self._resurrect.clear()
-        self._resurrect[OID_NULL] = None
         self._persist.clear()
-        self._persist[None] = OID_NULL
         self.clear_transaction_cache()
+        # Map the singletons.
+        for obj, oid in self._singletons.items():
+            self._resurrect[oid] = obj
 
     def clear_transaction_cache(self):
         tlog.debug("clearing transaction cache: %s", self._trans_resurrect)
@@ -192,6 +197,9 @@ class _ObjCache(object):
 
     def oid_from_obj(self, obj):
         """Return oid cached for obj, or raise KeyError."""
+        oid = self._singleton_ids.get(id(obj))
+        if oid is not None:
+            return oid
         key = self.pkey(obj)
         try:
             oid = self._trans_persist[key]
@@ -565,10 +573,12 @@ class MemoryManager(object):
         return int(i_str)
 
     def incref(self, oid):
-        """Increment the reference count of oid."""
+        """Increment the reference count of oid if it is not a singleton"""
         oid = self.otuple(oid)
-        if oid == OID_NULL:
+        assert oid != self.OID_NULL
+        if not oid[0]:
             # Unlike CPython, we don't ref-track our constants.
+            log.debug('not increfing %s', oid)
             return
         p_obj = ffi.cast('PObject *', self.direct(oid))
         log.debug('incref %r %r', oid, p_obj.ob_refcnt + 1)
@@ -580,6 +590,10 @@ class MemoryManager(object):
     def decref(self, oid):
         """Decrement the reference count of oid, and free it if zero."""
         oid = self.otuple(oid)
+        if not oid[0]:
+            # Unlike CPython we do not ref-track our constants.
+            log.debug('not decrefing %s', oid)
+            return
         p_obj = ffi.cast('PObject *', self.direct(oid))
         log.debug('decref %r %r', oid, p_obj.ob_refcnt - 1)
         with self.transaction():
@@ -690,6 +704,7 @@ class PersistentObjectPool(object):
                 type_table_oid = mm._create_type_table()
                 mm.snapshot_range(pmem_root, ffi.sizeof('PObjPtr'))
                 pmem_root.type_table = type_table_oid
+                pmem_root.root_object = self.mm.persist(None)
         else:
             mm._resurrect_type_table(type_table_oid)
         self._pmem_root = pmem_root
@@ -893,7 +908,9 @@ class PersistentObjectPool(object):
             elif root is not None:
                 if debug:
                     log.debug('gc: non-container root: %s %r', root_oid, root)
-                other.remove(root_oid)
+                if root_oid[0]:
+                    # It's not a singleton, so it should be in other.
+                    other.remove(root_oid)
             for oid in live:
                 if debug:
                     log.debug('gc: checking live %s %r',

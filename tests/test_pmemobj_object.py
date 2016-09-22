@@ -15,6 +15,11 @@ class Foo2(pmemobj.PersistentObject):
     def _v__init__(self):
         self._v_bar = 'baz'
 
+class Foo3(pmemobj.PersistentObject):
+    def __init__(self):
+        self.bar = None
+        self.bing = 'this is a test'
+
 
 class TestPersistentObject(TestCase):
 
@@ -119,6 +124,11 @@ class TestPersistentObject(TestCase):
         self.assertEqual(d._v_bar, 'baz')
         d = self._reload_root()
         self.assertEqual(d._v_bar, 'baz')
+
+    def test_subclass__init__(self):
+        o = self._make_object(Foo3)
+        self.assertEqual(o.bar, None)
+        self.assertEqual(o.bing, 'this is a test')
 
 
 if __name__ == '__main__':

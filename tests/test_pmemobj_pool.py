@@ -141,7 +141,7 @@ class TestPersistence(TestCase):
                        float=10.5,
                        string='abcde',
                        ustring='abő',
-                       none=None)
+                       )
     if sys.version_info[0] < 3:
         objs_params['long_int'] = sys.maxint * 2
 
@@ -151,7 +151,6 @@ class TestPersistence(TestCase):
         self.assertEqual(pop.root, obj)
         pop = self._reopen_pop()
         self.assertEqual(pop.root, obj)
-        pop.close()
 
     def test_id_int_collision(self):
         # We construct keys for mutable objects we cache using object ids.
@@ -166,6 +165,19 @@ class TestPersistence(TestCase):
         # 'is' works here is not actually an API requirement, but it is an
         # reality of the current code that isn't likely to break.
         self.assertIs(pop.root[0], pid)
+
+    singleton_params = dict(
+                       none=None,
+                       true=True,
+                       false=False
+                       )
+
+    def singleton_as_root_object(self, obj):
+        pop = self._setup()
+        pop.root = obj
+        self.assertIs(pop.root, obj)
+        pop = self._reopen_pop()
+        self.assertIs(pop.root, obj)
 
 
 class TestTransactions(TestCase):
@@ -334,6 +346,7 @@ class TestGC(TestCase):
             'float': 1,
             })
 
+    maxDiff = None
 
     def test_root_immutable_assignment_gcs(self):
         pop = self._pop()
