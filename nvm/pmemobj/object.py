@@ -10,7 +10,20 @@ log = logging.getLogger('nvm.pmemobj.object')
 
 
 class PersistentObject(object):
-    """Base class for arbitrary persistent objects."""
+    """Base class for arbitrary persistent objects.
+
+    A PersistentObject has a special attribute named "_p_mm" which provides
+    access to the MemoryManager associated with the persistent pool to which
+    the object belongs.  The most common use for this is to establish
+    transaction boundaries around object updates that should be atomic.
+
+    For example, if we have two list attributes 'pending' and 'done', we
+    can atomically shift an element from one to the other as follows:
+
+        with self._p_mm.transaction()
+            self.done.append(self.pending.pop())
+
+    """
 
     # XXX locking
 
@@ -37,7 +50,12 @@ class PersistentObject(object):
         self._v__init__()
 
     def _v__init__(self):
-        pass
+        """Method called during object creation *and* resurrection.
+
+        This method does nothing by default, but can be used to acquire
+        volatile resources when an object is created and restore them when it
+        is resurrected from persistent storage.
+        """
 
     # Methods to emulate a normal class.
 

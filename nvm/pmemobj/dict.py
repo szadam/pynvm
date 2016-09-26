@@ -56,7 +56,7 @@ def _usable_fraction(n):
     return (2*n+1)//3
 
 class PersistentDict(abc.MutableMapping):
-    """Persistent version of 'dict' type."""
+    """Persistent version of the 'dict' type."""
 
     # XXX locking
 

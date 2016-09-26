@@ -673,6 +673,9 @@ class PersistentObjectPool(object):
         on some additional sanity-check warnings.  This may have an impact
         on performance.
 
+        When the pool is opened, if the previous shutdown was not clean the
+        pool is cleaned up, including running the 'gc' method.
+
         See also the open and create functions of nvm.pmemobj, which are
         convenience functions for the 'w' and 'x' flags, respectively.
         """
@@ -714,7 +717,7 @@ class PersistentObjectPool(object):
             self.gc()
 
     def close(self):
-        """Close the object pool, freeing any unreferenced objects.
+        """Close the object pool, calling 'gc' to free any unreferenced objects.
 
         The object pool itself lives on in the file that contains it and may be
         reopened at a later date, and all the objects in it accessed, using
@@ -972,6 +975,9 @@ def open(filename, debug=False):
                      The application must have permission to open the file
                      and memory map it with read/write permissions.
     :return: a :class:`PersistentObjectPool` instance that manages the pool.
+
+    When the pool is opened, if the previous shutdown was not clean the
+    pool is cleaned up, including running the 'gc' method.
     """
     log.debug('open: %s, debug=%s', filename, debug)
     # Make sure the file exists.
@@ -992,6 +998,9 @@ def create(filename, pool_size=MIN_POOL_SIZE, mode=0o666, debug=False):
                       is pmemobj.MIN_POOL_SIZE.
     :param mode: specifies the permissions to use when creating the file.
     :return: a :class:`PersistentObjectPool` instance that manages the pool.
+
+    When the pool is opened, if the previous shutdown was not clean the
+    pool is cleaned up, including running the 'gc' method.
     """
     log.debug('create: %s, %s, %s, debug=%s', filename, pool_size, mode, debug)
     return PersistentObjectPool(filename, flag='x',
