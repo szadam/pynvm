@@ -156,6 +156,12 @@ class _ObjCache(object):
         self._persist = {}
         self._trans_resurrect = {}
         self._trans_persist = {}
+        self._singletons = {
+            None: (0, 1),
+            True: (0, 2),
+            False: (0, 3),
+            }
+        self._singleton_ids = {id(k): v for k, v in self._singletons.items()}
 
     def pkey(self, obj):
         # Use the object as the key if it is immutable (hashable) because we
@@ -165,13 +171,12 @@ class _ObjCache(object):
         return obj if getattr(obj, '__hash__', None) else ObjKey(obj)
 
     def clear(self):
-        # XXX I'm not sure we can get away with mapping OID_NULL
-        # to None here, but try it and see.
         self._resurrect.clear()
-        self._resurrect[OID_NULL] = None
         self._persist.clear()
-        self._persist[None] = OID_NULL
         self.clear_transaction_cache()
+        # Map the singletons.
+        for obj, oid in self._singletons.items():
+            self._resurrect[oid] = obj
 
     def clear_transaction_cache(self):
         tlog.debug("clearing transaction cache: %s", self._trans_resurrect)
@@ -192,6 +197,9 @@ class _ObjCache(object):
 
     def oid_from_obj(self, obj):
         """Return oid cached for obj, or raise KeyError."""
+        oid = self._singleton_ids.get(id(obj))
+        if oid is not None:
+            return oid
         key = self.pkey(obj)
         try:
             oid = self._trans_persist[key]
@@ -565,10 +573,12 @@ class MemoryManager(object):
         return int(i_str)
 
     def incref(self, oid):
-        """Increment the reference count of oid."""
+        """Increment the reference count of oid if it is not a singleton"""
         oid = self.otuple(oid)
-        if oid == OID_NULL:
+        assert oid != self.OID_NULL
+        if not oid[0]:
             # Unlike CPython, we don't ref-track our constants.
+            log.debug('not increfing %s', oid)
             return
         p_obj = ffi.cast('PObject *', self.direct(oid))
         log.debug('incref %r %r', oid, p_obj.ob_refcnt + 1)
@@ -580,6 +590,10 @@ class MemoryManager(object):
     def decref(self, oid):
         """Decrement the reference count of oid, and free it if zero."""
         oid = self.otuple(oid)
+        if not oid[0]:
+            # Unlike CPython we do not ref-track our constants.
+            log.debug('not decrefing %s', oid)
+            return
         p_obj = ffi.cast('PObject *', self.direct(oid))
         log.debug('decref %r %r', oid, p_obj.ob_refcnt - 1)
         with self.transaction():
@@ -659,6 +673,9 @@ class PersistentObjectPool(object):
         on some additional sanity-check warnings.  This may have an impact
         on performance.
 
+        When the pool is opened, if the previous shutdown was not clean the
+        pool is cleaned up, including running the 'gc' method.
+
         See also the open and create functions of nvm.pmemobj, which are
         convenience functions for the 'w' and 'x' flags, respectively.
         """
@@ -690,6 +707,7 @@ class PersistentObjectPool(object):
                 type_table_oid = mm._create_type_table()
                 mm.snapshot_range(pmem_root, ffi.sizeof('PObjPtr'))
                 pmem_root.type_table = type_table_oid
+                pmem_root.root_object = self.mm.persist(None)
         else:
             mm._resurrect_type_table(type_table_oid)
         self._pmem_root = pmem_root
@@ -699,7 +717,7 @@ class PersistentObjectPool(object):
             self.gc()
 
     def close(self):
-        """Close the object pool, freeing any unreferenced objects.
+        """Close the object pool, calling 'gc' to free any unreferenced objects.
 
         The object pool itself lives on in the file that contains it and may be
         reopened at a later date, and all the objects in it accessed, using
@@ -893,7 +911,9 @@ class PersistentObjectPool(object):
             elif root is not None:
                 if debug:
                     log.debug('gc: non-container root: %s %r', root_oid, root)
-                other.remove(root_oid)
+                if root_oid[0]:
+                    # It's not a singleton, so it should be in other.
+                    other.remove(root_oid)
             for oid in live:
                 if debug:
                     log.debug('gc: checking live %s %r',
@@ -955,6 +975,9 @@ def open(filename, debug=False):
                      The application must have permission to open the file
                      and memory map it with read/write permissions.
     :return: a :class:`PersistentObjectPool` instance that manages the pool.
+
+    When the pool is opened, if the previous shutdown was not clean the
+    pool is cleaned up, including running the 'gc' method.
     """
     log.debug('open: %s, debug=%s', filename, debug)
     # Make sure the file exists.
@@ -975,6 +998,9 @@ def create(filename, pool_size=MIN_POOL_SIZE, mode=0o666, debug=False):
                       is pmemobj.MIN_POOL_SIZE.
     :param mode: specifies the permissions to use when creating the file.
     :return: a :class:`PersistentObjectPool` instance that manages the pool.
+
+    When the pool is opened, if the previous shutdown was not clean the
+    pool is cleaned up, including running the 'gc' method.
     """
     log.debug('create: %s, %s, %s, debug=%s', filename, pool_size, mode, debug)
     return PersistentObjectPool(filename, flag='x',

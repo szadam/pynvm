@@ -253,7 +253,10 @@ provides a full python interface.  This interface allows to you store
 Python objects persistently.
 
 This is a work in progress: currently persistence is supported only for lists
-(PersistentList), dicts (PersistentDict), integers, strings, floats, and None.
+(PersistentList), dicts (PersistentDict), objects (PersistentObject),
+integers, strings, floats, None, True, and False.  This is, however, enough
+to do some interesting things, and an example (pminvaders2, a port
+to python of the C example) is included in the examples subdirectory.
 
 Creating a PersistentObjectPool and storing objects in it
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -263,30 +266,63 @@ You can see an example below of how to use the :mod:`nvm.pmemobj` API:
 
     from nvm import pmemobj
 
+    # An object to be our root.
+    class AppRoot(pmemobj.PersistentObject):
+        def __init__(self):
+            self.accounts = self._p_mm.new(pmemobj.PersistentDict)
+
+        def deposit(self, account, amount):
+            self.accounts[account].append(amount)
+
+        def transfer(self, source, sink, amount):
+            # Both parts of the transfer will succeed, or neither will.
+            with self._p_mm.transaction():
+                self.accounts[source].append(-amount)
+                self.accounts[sink].append(amount)
+
+        def balance(self, account):
+            return sum(self.accounts[account])
+
+        def balances(self):
+            for account in self.accounts:
+                yield account, self.balance(account)
+
     # Open the object pool, creating it if it doesn't exist yet.
-    pop = pmemobj.PersistentObjectPool('mylist.pmemobj', flag='c')
+    pop = pmemobj.PersistentObjectPool('myaccounts.pmemobj', flag='c')
 
-    # Use a persistent list as the root object of the pool.
+    # Create an instance of our AppRoot class as the object pool root.
     if pop.root is None:
-        pop.root = pop.new(pmemobj.PersistentList)
+        pop.root = pop.new(AppRoot)
 
-    # Make sure we have three sub-lists.
-    for i in range(len(pop.root), 3):
-        pop.root[i] = pop.new(pmemobj.PersistentList)
+    # Less typing.
+    accounts = pop.root.accounts
 
-    # Append some data.  Either all of this data will get appended,
-    # or none of it will.
-    with pop.transaction():
-        for i in range(len(self.root)):
-            root[i].append(i)
+    # Make sure two accounts are created.  In a real ap you'd create these accounts
+    # with subcommands from the command line.
+    for account in ('savings', 'checking'):
+        if account not in accounts:
+            # List of transactions.
+            accounts[account] = pop.new(pmemobj.PersistentList)
+            # Starting balance.
+            accounts[account].append(0)
 
-    # Close and reopen the pool.
+    # Pretend we have some money.
+    pop.root.deposit('savings', 200)
+
+    # Transfer some to checking.
+    pop.root.transfer('savings', 'checking', 20)
+
+    # Close and reopen the pool.  The open call will fail if the file doesn't exist.
     pop.close()
-    pop = pmemobj.PersistentObjectPool('mylist.pmemobj', flag='c')
+    pop = pmemobj.PersistentObjectPool('myaccounts.pmemobj')
 
-    # The list values are still there.
-    assert pop.root == [[1], [2], [3]]
+    # Print the current balances.  In a real ap this would be another subcommand,
+    # run at any later time, perhaps after a system reboot...
+    for account_name, balance in pop.root.balances():
+        print("{:10s} balance is {:4.2f}".format(account_name, balance))
 
+    # You can run this demo multiple times to see that the deposit and
+    # transfer are cumulative.
 
 Examples
 ===============================================================================
