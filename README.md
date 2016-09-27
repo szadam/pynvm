@@ -1,6 +1,6 @@
 [![PyPI](https://img.shields.io/pypi/v/pynvm.svg)](https://pypi.python.org/pypi/pynvm)
-[![Build Status](https://travis-ci.org/perone/pynvm.svg?branch=master)](https://travis-ci.org/perone/pynvm)
-[![Coverage Status](https://coveralls.io/repos/github/perone/pynvm/badge.svg?branch=master)](https://coveralls.io/github/perone/pynvm?branch=master)
+[![Build Status](https://travis-ci.org/pmem/pynvm.svg?branch=master)](https://travis-ci.org/pmem/pynvm)
+[![Coverage Status](https://coveralls.io/repos/github/pmem/pynvm/badge.svg?branch=master)](https://coveralls.io/github/pmem/pynvm?branch=master)
 [![Docs](https://readthedocs.org/projects/pip/badge/?version=latest)](http://pynvm.readthedocs.org/en/latest/)
 
 # pynvm - Non-volatile memory to Python ecosystem
