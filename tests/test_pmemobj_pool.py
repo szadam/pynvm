@@ -378,7 +378,7 @@ class TestGC(TestCase):
         self.assertEqual(gc_counts['orphans0-gced'], 1)
         self.assertGCCollectedNothing(pop.gc()[1])
 
-    def test_collect_cycle(self):
+    def test_collect_list_cycle(self):
         pop = self._pop()
         pop.root = pop.new(pmemobj.PersistentList)
         pop.root.append(pop.new(pmemobj.PersistentList))

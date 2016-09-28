@@ -396,6 +396,7 @@ class MemoryManager(object):
     def direct(self, oid):
         """Return the real memory address where oid lives."""
         oid = self.otuple(oid)
+        assert oid[0], "invalid OID: {}".format(oid)
         return _check_null(lib.pmemobj_direct(oid))
 
     def snapshot_range(self, ptr, size):

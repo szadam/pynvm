@@ -57,6 +57,9 @@ class PersistentList(abc.MutableSequence):
         return ffi.cast('PObjPtr *', mm.direct(ob_items))
 
     def _resize(self, newsize):
+        # Note that resize does *not* set self._size.  That needs to be done by
+        # the caller such that that the we never expose invalid item cells.
+        # The size field is covered by a snapshot done here, though.
         mm = self._p_mm
         allocated = self._allocated
         # Only realloc if we don't have enough space already.
@@ -84,7 +87,6 @@ class PersistentList(abc.MutableSequence):
             mm.snapshot_range(self._body, ffi.sizeof('PListObject'))
             self._body.ob_items = items
             self._body.allocated = new_allocated
-            ffi.cast('PVarObject *', self._body).ob_size = newsize
 
     def insert(self, index, value):
         mm = self._p_mm
@@ -106,6 +108,7 @@ class PersistentList(abc.MutableSequence):
             v_oid = mm.persist(value)
             mm.incref(v_oid)
             items[index] = v_oid
+            ffi.cast('PVarObject *', self._body).ob_size = newsize
 
     def _normalize_index(self, index):
         try:
@@ -139,11 +142,15 @@ class PersistentList(abc.MutableSequence):
         newsize = size - 1
         items = self._items
         with mm.transaction():
+            ffi.cast('PVarObject *', self._body).ob_size = newsize
+            # We can't completely hide the process of transformation...this
+            # really needs a lock (or translation to GIL-locked C).
             mm.snapshot_range(ffi.addressof(items, index),
                               ffi.offsetof('PObjPtr *', size))
-            mm.decref(items[index])
+            oid = mm.otuple(items[index])
             for i in range(index, newsize):
                 items[i] = items[i+1]
+            mm.decref(oid)
             self._resize(newsize)
 
     def __getitem__(self, index):
@@ -182,11 +189,12 @@ class PersistentList(abc.MutableSequence):
             return
         items = self._items
         with mm.transaction():
-            for i in range(self._size):
+            size = self._size
+            # Set size to zero now so we never have an invalid state.
+            ffi.cast('PVarObject *', self._body).ob_size = 0
+            for i in range(size):
                 # Grab oid in tuple form so the assignment can't change it
                 oid = mm.otuple(items[i])
-                if oid == mm.OID_NULL:
-                    continue
                 items[i] = mm.OID_NULL
                 mm.decref(oid)
             self._resize(0)
