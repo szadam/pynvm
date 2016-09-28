@@ -385,11 +385,27 @@ class TestGC(TestCase):
         pop.root.append(pop.new(pmemobj.PersistentList))
         pop.root[0].append(pop.root[1])
         pop.root[1].append(pop.root[0])
-        type_counts, _ = pop.gc()
+        type_counts, gc_counts = pop.gc()
         self.assertEqual(type_counts['PersistentList'], 4)
+        self.assertEqual(gc_counts['collections-gced'], 0)
         pop.root.clear()
         type_counts, gc_counts = pop.gc(debug=True)
         self.assertEqual(type_counts['PersistentList'], 4)
+        self.assertEqual(gc_counts['collections-gced'], 2)
+
+    def test_collect_dict_cycle(self):
+        pop = self._pop()
+        pop.root = pop.new(pmemobj.PersistentDict)
+        pop.root['a'] = pop.new(pmemobj.PersistentDict)
+        pop.root['b'] = pop.new(pmemobj.PersistentDict)
+        pop.root['a']['b'] = pop.root['b']
+        pop.root['b']['a'] = pop.root['a']
+        type_counts, gc_counts = pop.gc()
+        self.assertEqual(type_counts['PersistentDict'], 3)
+        self.assertEqual(gc_counts['collections-gced'], 0)
+        pop.root.clear()
+        type_counts, gc_counts = pop.gc(debug=True)
+        self.assertEqual(type_counts['PersistentDict'], 3)
         self.assertEqual(gc_counts['collections-gced'], 2)
 
 
