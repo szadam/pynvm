@@ -709,12 +709,14 @@ class PersistentObjectPool(object):
                 mm.snapshot_range(pmem_root, ffi.sizeof('PObjPtr'))
                 pmem_root.type_table = type_table_oid
                 pmem_root.root_object = self.mm.persist(None)
+                pmem_root.clean_shutdown = self.mm.persist(False)
+                gc_needed = False
         else:
             mm._resurrect_type_table(type_table_oid)
+            gc_needed = not self.mm.resurrect(pmem_root.clean_shutdown)
         self._pmem_root = pmem_root
-        if exists:
-            # Make sure any objects orphaned by a crash are cleaned up.
-            # XXX should fix this to only be called when there is a crash.
+        # Make sure any objects orphaned by a crash are cleaned up.
+        if gc_needed:
             self.gc()
 
     def close(self):
@@ -962,6 +964,8 @@ class PersistentObjectPool(object):
             self.mm._track_free = None
             log.debug('gc: end')
 
+            # All cleaned up, so no need to gc on open.
+            self._pmem_root.clean_shutdown = self.mm.persist(True)
             return dict(type_counts), dict(gc_counts)
 
 
