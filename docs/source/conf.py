@@ -63,8 +63,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'pynvm'
-copyright = u'2015, Christian S. Perone'
-author = u'Christian S. Perone'
+copyright = u'2016, Christian S. Perone, R. David Murray'
+author = u'Christian S. Perone, R. David Murray'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

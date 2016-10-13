@@ -31,6 +31,6 @@ License
 
 .. note::
 
-    This library links with the NVML, you can see the
-    `NVML license <https://github.com/pmem/nvml/blob/master/LICENSE>`_ here.
-
+    This library links with the NVML, you can see the `NVML license
+    <https://github.com/pmem/nvml/blob/master/LICENSE>`_ here.  The pmemobj
+    Python code is covered by the NVML license, rather than the above.

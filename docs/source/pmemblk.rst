@@ -1,0 +1,2 @@
+.. automodule:: nvm.pmemblk
+    :members:
