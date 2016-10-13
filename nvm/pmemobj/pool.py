@@ -5,7 +5,7 @@ if not hasattr(errno, 'ECANCELED'):
 import logging
 import os
 import sys
-from pickle import whichmodule
+from pickle import whichmodule, dumps, loads
 from threading import RLock
 
 from _pmem import lib, ffi
@@ -25,6 +25,9 @@ OID_NULL = (lib.OID_NULL.pool_uuid_lo, lib.OID_NULL.off)
 # Arbitrary numbers.
 POBJECT_TYPE_NUM = 20
 INTERNAL_ABORT_ERRNO = 99999
+
+# Dummy class used to mark objects persisted by pickling.
+class PICKLE_SENTINEL: pass
 
 
 # XXX move this to a central location and use in all libraries.
@@ -339,6 +342,7 @@ class MemoryManager(object):
         self._obj_cache = _ObjCache()
         self._transaction = _Transaction(self._pool_ptr, self._obj_cache)
         self._init_caches()
+        self._pickleable = set()
 
     def transaction(self):
         """Return a (context manager) object that represents a transaction."""
@@ -480,10 +484,13 @@ class MemoryManager(object):
             self._obj_cache.cache(obj._p_oid, obj)
             return obj._p_oid
         cls_str = _class_string(obj.__class__)
-        persister = '_persist_' + cls_str.replace(':', '_')
-        if not hasattr(self, persister):
+        persister = '_persist_' + cls_str.replace(':', '_').replace('.', ':')
+        if hasattr(self, persister):
+            oid = getattr(self, persister)(obj)
+        elif cls_str in self._pickleable:
+            oid = self._persist_nvm_pmemobj_pool_PICKLE_SENTINEL(obj)
+        else:
             raise TypeError("Don't know how to persist {!r}".format(cls_str))
-        oid = getattr(self, persister)(obj)
         self._obj_cache.cache(oid, obj, in_transaction=self._transaction.depth)
         log.debug('new %s object: %r', cls_str, oid)
         return oid
@@ -506,7 +513,7 @@ class MemoryManager(object):
             cls_str = _class_string(str)
         else:
             cls_str = self._type_table[type_code]
-        resurrector = '_resurrect_' + cls_str.replace(':', '_')
+        resurrector = '_resurrect_' + cls_str.replace(':', '_').replace('.', '_')
         if hasattr(self, resurrector):
             obj = getattr(self, resurrector)(obj_ptr)
             log.debug('resurrect %r: immutable type (%r): %r',
@@ -519,6 +526,26 @@ class MemoryManager(object):
             log.debug('resurrect %r: persistent type (%r): %r',
                       oid, cls_str, obj)
         self._obj_cache.cache(oid, obj)
+        return obj
+
+    def _persist_nvm_pmemobj_pool_PICKLE_SENTINEL(self, obj):
+        type_code = self._get_type_code(PICKLE_SENTINEL)
+        s = dumps(obj)
+        print(s)
+        with self.transaction():
+            p_obj_oid = self.malloc(ffi.sizeof('PVarObject') + len(s))
+            p_pickle = ffi.cast('PVarObject *', self.direct(p_obj_oid))
+            p_pickle.ob_base.ob_type = type_code
+            p_pickle.ob_size = len(s)
+            body = ffi.cast('char *', p_pickle) + ffi.sizeof('PVarObject')
+            ffi.buffer(body, len(s))[:] = s
+        return p_obj_oid
+
+    def _resurrect_nvm_pmemobj_pool_PICKLE_SENTINEL(self, obj_ptr):
+        obj_ptr = ffi.cast('PVarObject *', obj_ptr)
+        body = ffi.cast('char *', obj_ptr) + ffi.sizeof('PVarObject')
+        s = ffi.buffer(body, obj_ptr.ob_size)[:]
+        obj = loads(s)
         return obj
 
     def _persist_builtins_str(self, s):
@@ -785,6 +812,20 @@ class PersistentObjectPool(object):
         typ must support the Persistent API.
         """
         return self.mm.new(typ, *args, **kw)
+
+    def persist_via_pickle(self, *types):
+        """Nominate types to be persisted by pickling them.
+
+        Pickled types will be unpickleable by any object pool, but the
+        types will only be able to be re-persisted if the ap nominates
+        them via this method (unless specific persistence support has
+        been added for the type).
+
+        Only immutable types that cannot contain pointers to other objects are
+        valid arguments, but no checking is done to enforce this.
+        """
+        for t in types:
+            self.mm._pickleable.add(_class_string(t))
 
     # If I didn't have to support python2 I'd make debug keyword only.
     def gc(self, debug=None):

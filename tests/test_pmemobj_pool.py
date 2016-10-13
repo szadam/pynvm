@@ -162,7 +162,7 @@ class TestPersistence(TestCase):
         # pop.root gets resurrected from cache here.
         self.assertIs(pop.root, root)
         # And the list's first element gets resurrected from cache here.  That
-        # 'is' works here is not actually an API requirement, but it is an
+        # 'is' works here is not actually an API requirement, but it is a
         # reality of the current code that isn't likely to break.
         self.assertIs(pop.root[0], pid)
 
@@ -178,6 +178,15 @@ class TestPersistence(TestCase):
         self.assertIs(pop.root, obj)
         pop = self._reopen_pop()
         self.assertIs(pop.root, obj)
+
+    def test_persistence_via_pickle(self):
+        from decimal import Decimal
+        pop = self._setup()
+        pop.persist_via_pickle(Decimal)
+        obj = pop.root = Decimal('120.00075')
+        pop = self._reopen_pop()
+        self.assertEqual(pop.root, obj)
+        self.assertEqual(type(pop.root), type(obj))
 
 
 class TestTransactions(TestCase):
