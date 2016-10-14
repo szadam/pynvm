@@ -78,6 +78,16 @@ Creating and Accessing a :mod:`PersistentOjbectPool`
       constructor *args* and *kw*.  *typ* must support the :class:`Persistent`
       API.
 
+   .. method:: persist_via_pickle(*types)
+
+      Add *types* to the list of types that will be persisted via pickle.
+      Nominated types must be non-container immutable types (this is not
+      currently enforced, but confusing things will happen if you violate it).
+      If a version of pmemobj to which support for a given type has been added
+      is used to open a pool with instances of that type stored via pickle, the
+      object will be resurrected from pickle, but any new instances written to
+      the pool will use the direct support.
+
 
    .. method:: transaction()
 
