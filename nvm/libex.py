@@ -7,6 +7,7 @@ pmemobj_structs = """
     typedef struct {
         PObjPtr type_table;
         PObjPtr root_object;
+        PObjPtr clean_shutdown;
         } PRoot;
     typedef struct {
         size_t ob_refcnt;

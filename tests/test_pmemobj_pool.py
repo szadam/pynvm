@@ -417,6 +417,60 @@ class TestGC(TestCase):
         self.assertEqual(type_counts['PersistentDict'], 3)
         self.assertEqual(gc_counts['collections-gced'], 2)
 
+    def test_collect_unreferenced_new_objects(self):
+        pop = self._pop()
+        pop.new(pmemobj.PersistentList)
+        pop.new(pmemobj.PersistentDict)
+        type_counts, gc_counts = pop.gc()
+        self.assertEqual(type_counts['PersistentList'], 2)
+        self.assertEqual(type_counts['PersistentDict'], 1)
+        self.assertEqual(gc_counts['orphans0-gced'], 2)
+        type_counts, gc_counts = pop.gc()
+        self.assertEqual(type_counts['PersistentList'], 1)
+        self.assertNotIn('PersistentDict', type_counts)
+        self.assertEqual(gc_counts['orphans0-gced'], 0)
+
+    def test_gc_runs_automatically(self):
+        pop = self._pop()
+        pop.new(pmemobj.PersistentList)
+        pop.new(pmemobj.PersistentDict)
+        pop.close()
+        pop = pmemobj.open(self.fn)
+        type_counts, gc_counts = pop.gc()
+        self.assertEqual(type_counts['PersistentList'], 1)
+        self.assertNotIn('PersistentDict', type_counts)
+        self.assertEqual(gc_counts['orphans0-gced'], 0)
+
+    def test_gc_runs_after_abort(self):
+        pop = self._pop()
+        pop.new(pmemobj.PersistentDict)
+        # Fake an abort by not letting the gc run.
+        try:
+            old_gc = pmemobj.PersistentObjectPool.gc
+            pmemobj.PersistentObjectPool.gc = lambda *args, **kw: None
+            pop.close()
+        finally:
+            pmemobj.PersistentObjectPool.gc = old_gc
+        pop = pmemobj.open(self.fn)
+        type_counts, gc_counts = pop.gc()
+        self.assertNotIn('PersistentDict', type_counts)
+        self.assertEqual(gc_counts['orphans0-gced'], 0)
+
+    def test_gc_does_not_run_on_startup_after_clean_shutdown(self):
+        pop = self._pop()
+        pop.root = pop.new(pmemobj.PersistentDict)
+        pop.close()
+        self.called = False
+        def fake_gc(*args, **kw):
+            self.called = True
+        try:
+            old_gc = pmemobj.PersistentObjectPool.gc
+            pmemobj.PersistentObjectPool.gc = fake_gc
+            pop = pmemobj.open(self.fn)
+        finally:
+            pmemobj.PersistentObjectPool.gc = old_gc
+        self.assertFalse(self.called)
+
 
 if __name__ == '__main__':
     unittest.main()
