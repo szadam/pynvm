@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import random
+from nvm.pmemobj import create, PersistentList, PersistentDict
+
+pool_fn = 'guessing_game.pmem'
+max = 50
+
+try:
+    pool = create(pool_fn)
+except OSError as err:
+    print(err)
+    print("Are you already in the middle of a game?")
+    sys.exit()
+
+with pool:
+    with pool.transaction():
+        root = pool.root = pool.new(PersistentDict)
+        root['number'] = random.randint(1, max)
+        root['name'] = name = input("Hello, what is your name?  ")
+        root['guesses'] = pool.new(PersistentList)
+print("{}, I've picked a number between 1 and {}.".format(name, max))
+print("Type 'guess' followed by your guess at the prompt.")

@@ -18,6 +18,7 @@ Contents:
 
    intro
    getting_started
+   pmemobj_tutorial
    pmem
    pmemlog
    pmemblk
