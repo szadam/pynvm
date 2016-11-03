@@ -344,3 +344,85 @@ finish the game.  We could add a 'status' command that let you know now many
 guesses you'd made, and even replay the guesses.  While this is a trivial
 example, I think you can see how these principles would apply to more useful
 programs with retained state.
+
+
+Persistent Objects
+-------------------------------------------------------------------------------
+
+Python is an object oriented language, so we of course would like to be able to
+persist arbitrary objects.  We can't do that in the general case, since
+anything that has a specific memory layout requires specific support in
+:mod:`pmemobj`.  However, Python objects that do not subclass built-in types
+are, from the point of view of persistent memory, just a dictionary wrapped in
+some extra behavior.  So :mod:`pmemobj` does support persisting arbitrary
+objects that do not subclass built-ins, via the
+:class:`~pmemobj.PersistentObject` base class.
+
+Our ``guess`` code above has to awkwardly pull the data of interest out of the
+dictionary that we used as a namespace.  It would provide simpler code if we
+can instead have that data be attributes on an object.  To do that, we'll need
+to be able to access that object from both programs, so we'll want a separate
+python file to hold our class definition:
+
+.. literalinclude:: examples/guess_lib.py
+
+The first thing to notice about the :class:`~pmemobj.PersistentObject` subclass
+is that for the most part it doesn't look any different from a normal Python
+class.  There is an ``__init__`` that is executed when the object is first
+created, and most attributes are referenced and set normally.  The one
+exception is our ``self.guesses`` attribute.  We want that to be a list.  Since
+it is not a non-container immutable, it needs to be a
+:class:`~pmemobj.Persistent` object itself.
+
+To accomplish this we make use of the :attr:`~pmemobj.Persistent._p_mm`
+attribute of our :class:`~pmemobj.PersistentObject` instance.  This attribute
+points to the :class:`~pmemobj.MemoryManager` instance associated with the
+:class:`~pmemobj.PersistentObject`.  We can use that reference to access the
+``MemoryManager's`` :meth:`~pmemobj.MemoryManager.new` method, and use that
+method to create an empty :class:`~pmemobj.PersistentList` that is associated
+with the same ``Memorymanager`` managing our ``PersistentObject``.
+
+We can also use the :attr:`~pmemobj.Persistent._p_mm` attribute to access the
+``MemoryManager's`` :meth:`~pmemobj.MemoryManager.transaction` context manager,
+as you can see in the ``check_guess`` method of the example.  Unlike our
+previous example, in this code block we are making several updates to our class
+that should either all be done, or none of them done.  By using the
+transaction, we ensure that either the guess is completely processed, or it is
+not processed at all, no matter when the program gets interrupted.
+
+With the game logic now factored out into a class, our command scripts are much
+simpler.
+
+``start_guessing`` becomes:
+
+.. literalinclude:: examples/start_guessing2
+
+To start the game, we check there's no existing game file and create
+it, but now initializing the data structures in the pool consists of just
+calling :meth:`~pmemobj.PersistentObjectPool.new` on our ``guesser`` class and
+assigning that to :attr:`~pmemobj.PersistemtObjectPool.root`.
+
+The ``guess`` command is now almost trivial:
+
+.. literalinclude:: examples/guess2
+
+We use our library function to reopen the pool, which checks for the various
+error conditions and aborts with the appropriate message if we run into any of
+them.  Then we grab the ``guesser`` instance from the pool's
+:attr:`~pmemobj.PersistemtObjectPool.root` and pass the guess the player made
+its ``check_guess`` method to evaluate, printing the message associated with
+whatever guess status it returns, removing the game file if and only if the
+game is over:
+
+And now we can easily implement the ``game_status`` command mentioned earlier:
+
+.. literalinclude:: examples/guess_status2
+
+The pattern here is one I expect many persistent memory applications will share
+(possibly via a single program with subcommands or sub-functions, rather than
+the multiple program files in this example):  the persistent memory is accessed
+through an instance of an application specific class that is assigned to the
+:attr:`~pmemobj.PersistemtObjectPool.root` of the object pool.  When run, the
+application makes sure it can access the pool, then grabs the instance from
+:attr:`~pmemobj.PersistemtObjectPool.root` and uses the instance's methods to
+accomplish the application's goals.
