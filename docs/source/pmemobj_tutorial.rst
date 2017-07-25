@@ -174,7 +174,7 @@ and accessing it when referenced.  If a class is not supported directly, then a
 program using :mod:`pmemobj` can still reference them, if the program nominates
 them for persistence via pickling.  This is less efficient than direct support,
 but allows programs to use data types for which support has not yet been
-written.  (Picking is not applied automatically because there is no way for
+written.  (Pickling is not applied automatically because there is no way for
 :mod:`pmemobj` to determine if a specific class is immutable or not.)
 
 

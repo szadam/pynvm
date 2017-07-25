@@ -53,7 +53,7 @@ Creating and Accessing a :mod:`PersistentOjbectPool`
 
    If the object pool was previously not closed cleanly, call :meth:`gc`.
 
-   Use *debug* as the default value for the *debug* paramter to the :meth:`gc`
+   Use *debug* as the default value for the *debug* parameter to the :meth:`gc`
    method.
 
 
@@ -150,7 +150,7 @@ Managing Persistent Memory
    .. method:: otuple(oid)
 
       Ensure that *oid* is in tuple form.  An ``oid`` retreived from memory is
-      actually a poitner to the memory the oid was retrieved from, so if
+      actually a pointer to the memory the oid was retrieved from, so if
       contents of that memory location changes the value of the raw ``oid``
       would change.  This method copies the ``oid`` data into a tuple not
       subject to such modification, but which can be assigned to a memory field
@@ -302,7 +302,7 @@ Persistent Classes
 .. class:: PersistentList([iterable])
 
    A :class:`Persistent` version of the normal Python :class:`list`.  Its
-   behavor should be identical except for being persistent.  (Note:
+   behavior should be identical except for being persistent.  (Note:
    currently slices are not supported.)
 
 

@@ -39,15 +39,7 @@ and in our case, this is not the traditional volatile memory, it is
 serialize data to disk anymore to save it between program runs, you just keep
 your data structures in memory that is **persistent**.
 
-However with great power comes great responsibility: it is the duty of the
-program doing the memory access to provide things such as flushes and hardware
-drains (i.e. `CLWB/PCOMMIT instructions <http://danluu.com/clwb-pcommit/>`_).
-If a machine crashes during a write to persistent memory, the write can be in
-some cases be "torn": only part of the change actually reaches the persistent
-memory, and another part of it is lost.  The application must be aware of when
-it can rely on a change being completely preserved and when it can't.
-Providing the infrastructure to do this reliably, so that writes to memory
-cannot be torn from the application's point of view, is the purpose of Intel's
+Providing the infrastructure to do this reliably is the purpose of Intel's
 `NVM Library <https://github.com/pmem/nvml>`_, for which this package provides
 Python bindings.
 

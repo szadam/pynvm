@@ -11,7 +11,7 @@ class GameError(Exception):
 
 def reopen_game():
     if not os.path.isfile(pool_fn):
-        raise GameError("No game in progress.  Use 'start_guessng'"
+        raise GameError("No game in progress.  Use 'start_guessing'"
                         " to start one.")
     try:
         pool = open(pool_fn)

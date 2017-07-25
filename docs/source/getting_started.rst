@@ -13,7 +13,7 @@ You can then install **pynvm** using **pip**::
     pip install pynvm
 
 **pip** will automatically install all dependencies for the Python package.
-To use **pynvn** in your program, import the submodule you wish to use
+To use **pynvm** in your program, import the submodule you wish to use
 via the ``nvm`` namespace.  For example, to use pmemobj you can do::
 
     import nvm.pmemobj
@@ -95,7 +95,7 @@ buffers:
         reg.write("lol" * 10)
         reg.write("aaaa")
 
-    # Will only execute the hardware drain (aka PCOMMIT)
+    # Will only execute the hardware drain (if available)
     m = pmem.map(fhandle, 4096)
     with pmem.DrainContext(m) as reg:
         reg.write("lol" * 10)
