@@ -268,10 +268,10 @@ def flush(memory_buffer):
     lib.pmem_flush(cdata, len(memory_buffer))
 
 
-def drain(memory_buffer):
+def drain(memory_buffer=None):
     """Wait for any PM stores to drain from HW buffers.
 
-    :param memory_buffer: the MemoryBuffer object.
+    :param memory_buffer: the MemoryBuffer object, legacy param,
+                          not required anymore.
     """
-    cdata = memory_buffer._cdata()
-    lib.pmem_flush(cdata, len(memory_buffer))
+    lib.pmem_drain()
