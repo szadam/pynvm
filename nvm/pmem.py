@@ -5,7 +5,8 @@
 :mod:`pmem` -- low level persistent memory support
 ==================================================================
 
-.. seealso:: `NVML libpmem documentation <http://pmem.io/nvml/libpmem/libpmem.3.html>`_.
+.. seealso:: `NVML libpmem man page
+             <http://pmem.io/nvml/manpages/master/libpmem.3.html>`_.
 """
 import os
 import sys

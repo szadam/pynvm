@@ -5,7 +5,8 @@
 :mod:`pmemlog` -- pmem-resident log file
 ==================================================================
 
-.. seealso:: `NVML libpmemlog documentation <http://pmem.io/nvml/libpmemlog/libpmemlog.3.html>`_.
+.. seealso:: `NVML libpmemlog man page
+             <http://pmem.io/nvml/manpages/master/libpmemlog.3.html>`_.
 """
 import os
 from _pmem import lib, ffi
