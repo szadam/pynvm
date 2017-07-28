@@ -2,6 +2,7 @@
 import logging
 import sys
 import unittest
+import re
 
 from nvm import pmemobj
 
@@ -41,9 +42,9 @@ class TestPersistentObjectPool(TestCase):
         fn = self._test_fn()
         with self.assertRaises(ValueError) as cm:
             pop = pmemobj.create(fn, pmemobj.MIN_POOL_SIZE-1)
-        self.assertMsgBits(str(cm.exception),
-                           str(pmemobj.MIN_POOL_SIZE-1),
-                           str(pmemobj.MIN_POOL_SIZE))
+        self.assertNotEqual(
+            re.search(r"size ?\d+ smaller than %d" %
+                      (pmemobj.MIN_POOL_SIZE), str(cm.exception)), None)
 
     def test_list_of_strings_as_root_obj(self):
         # Lists and strings are our "built in" types (handled specially by the
@@ -215,9 +216,9 @@ class TestTransactions(TestCase):
     def test_non_context_abort_raises_and_resets_state(self):
         pop = self._setup()
         # XXX what to do about the invalid message?
-        #with self.assertRaisesRegex(OSError, 'canceled'):
+        # with self.assertRaisesRegex(OSError, 'canceled'):
         with self.assertRaises(OSError):
-            trans =  pop.transaction()
+            trans = pop.transaction()
             trans.begin()
             pop.root = 10
             trans.abort(errno.ECANCELED)
@@ -235,7 +236,7 @@ class TestTransactions(TestCase):
 
     def test_context_abort_raises_and_resets_state(self):
         pop = self._setup()
-        #with self.assertRaisesRegex(OSError, 'canceled'):
+        # with self.assertRaisesRegex(OSError, 'canceled'):
         with self.assertRaises(OSError):
             with pop.transaction() as trans:
                 pop.root = 10
@@ -461,6 +462,7 @@ class TestGC(TestCase):
         pop.root = pop.new(pmemobj.PersistentDict)
         pop.close()
         self.called = False
+
         def fake_gc(*args, **kw):
             self.called = True
         try:
