@@ -10,7 +10,7 @@ class TestPersistentDict(TestCase):
 
     def _make_dict(self, *args, **kw):
         self.fn = self._test_fn()
-        self.pop = pmemobj.create(self.fn, debug=True)
+        self.pop = pmemobj.create(self.fn, pool_size=32*1024*1024, debug=True)
         self.addCleanup(self.pop.close)
         self.pop.root = self.pop.new(pmemobj.PersistentDict, *args, **kw)
         return self.pop.root
