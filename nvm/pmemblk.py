@@ -127,7 +127,8 @@ def open(filename, block_size=0):
     return BlockPool(ret)
 
 
-def create(filename, block_size, pool_size=1024 * 1024 * 2, mode=0666):
+def create(filename, block_size=lib.PMEMBLK_MIN_BLK,
+           pool_size=lib.PMEMBLK_MIN_POOL, mode=0666):
     """This function function creates a block memory pool with the given
     total pool size divided up into as many elements of block size as will
     fit in the pool.
@@ -141,8 +142,8 @@ def create(filename, block_size, pool_size=1024 * 1024 * 2, mode=0666):
               created, this function will raise an exception.
 
     :param filename: specifies the name of the memory pool file to be created.
-    :param block_size: the size of the blocks.
-    :param pool_size: the size of the pool (default to 2MB).
+    :param block_size: the size of the blocks (defaults to PMEMBLK_MIN_BLK).
+    :param pool_size: the size of the pool (defaults to PMEMBLK_MIN_POOL).
     :param mode: specifies the permissions to use when creating the file.
     :return: the new block memory pool created.
     :rtype: BlockPool

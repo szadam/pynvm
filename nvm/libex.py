@@ -99,6 +99,8 @@ ffi.cdef("""
         void *arg);
 
     /* libpmemblk */
+    #define PMEMBLK_MIN_POOL ...
+    #define PMEMBLK_MIN_BLK ...
     typedef struct pmemblk PMEMblkpool;
     const char *pmemblk_errormsg(void);
     PMEMblkpool *pmemblk_open(const char *path, size_t bsize);
