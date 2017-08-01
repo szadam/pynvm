@@ -79,6 +79,7 @@ ffi.cdef("""
     void pmem_drain(void);
 
     /* libpmemlog */
+    #define PMEMLOG_MIN_POOL ...
     typedef struct pmemlog PMEMlogpool;
     typedef int off_t;
 
