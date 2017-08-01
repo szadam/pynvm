@@ -128,7 +128,7 @@ def open(filename, block_size=0):
 
 
 def create(filename, block_size=lib.PMEMBLK_MIN_BLK,
-           pool_size=lib.PMEMBLK_MIN_POOL, mode=0666):
+           pool_size=lib.PMEMBLK_MIN_POOL, mode=0o666):
     """This function function creates a block memory pool with the given
     total pool size divided up into as many elements of block size as will
     fit in the pool.

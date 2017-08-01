@@ -146,7 +146,7 @@ def open(filename):
     return LogPool(ret)
 
 
-def create(filename, pool_size=lib.PMEMLOG_MIN_POOL, mode=0666):
+def create(filename, pool_size=lib.PMEMLOG_MIN_POOL, mode=0o666):
     """The `create()` function creates a log memory pool with the given total
     `pool_size`. Since the transactional nature of a log memory pool
     requires some space overhead in the memory pool, the resulting available
