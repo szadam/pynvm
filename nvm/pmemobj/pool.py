@@ -10,6 +10,7 @@ from threading import RLock
 
 from _pmem import lib, ffi
 from .list import PersistentList
+from .compat import _coerce_fn
 
 log = logging.getLogger('nvm.pmemobj')
 tlog = logging.getLogger('nvm.pmemobj.trace')
@@ -28,14 +29,6 @@ INTERNAL_ABORT_ERRNO = 99999
 
 # Dummy class used to mark objects persisted by pickling.
 class PICKLE_SENTINEL: pass
-
-
-# XXX move this to a central location and use in all libraries.
-def _coerce_fn(file_name):
-    """Return 'char *' compatible file_name on both python2 and python3."""
-    if sys.version_info[0] > 2 and hasattr(file_name, 'encode'):
-        file_name = file_name.encode(errors='surrogateescape')
-    return file_name
 
 # This could also be centralized except that there is a per-library error
 # message function.

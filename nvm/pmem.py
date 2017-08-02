@@ -11,6 +11,7 @@
 import os
 import sys
 from _pmem import lib, ffi
+from .pmemobj.compat import _coerce_fn
 
 #: Create the named file if it does not exist.
 FILE_CREATE = 1
@@ -197,9 +198,7 @@ def map_file(file_name, file_size, flags, mode):
     ret_mappend_len = ffi.new("size_t *")
     ret_is_pmem = ffi.new("int *")
 
-    if sys.version_info[0] > 2 and hasattr(file_name, 'encode'):
-        file_name = file_name.encode(errors='surrogateescape')
-    ret = lib.pmem_map_file(file_name, file_size, flags, mode,
+    ret = lib.pmem_map_file(_coerce_fn(file_name), file_size, flags, mode,
                             ret_mappend_len, ret_is_pmem)
 
     if ret == ffi.NULL:

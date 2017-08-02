@@ -10,7 +10,7 @@
 """
 import os
 from _pmem import lib, ffi
-
+from .pmemobj.compat import _coerce_fn
 
 class BlockPool(object):
     """This class represents the Block Pool opened or created using
@@ -121,7 +121,7 @@ def open(filename, block_size=0):
     :return: the block memory pool.
     :rtype: BlockPool
     """
-    ret = lib.pmemblk_open(filename, block_size)
+    ret = lib.pmemblk_open(_coerce_fn(filename), block_size)
     if ret == ffi.NULL:
         raise RuntimeError(os.strerror(ffi.errno))
     return BlockPool(ret)
@@ -148,7 +148,8 @@ def create(filename, block_size=lib.PMEMBLK_MIN_BLK,
     :return: the new block memory pool created.
     :rtype: BlockPool
     """
-    ret = lib.pmemblk_create(filename, block_size, pool_size, mode)
+    ret = lib.pmemblk_create(_coerce_fn(filename), block_size,
+                             pool_size, mode)
     if ret == ffi.NULL:
         raise RuntimeError(os.strerror(ffi.errno))
     return BlockPool(ret)

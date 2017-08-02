@@ -1,3 +1,5 @@
+import sys
+
 try:
     import collections.abc as abc
 except ImportError:
@@ -23,3 +25,10 @@ except ImportError:
                 return result
             return wrapper
         return decorating_function
+
+
+def _coerce_fn(file_name):
+    """Return 'char *' compatible file_name on both python2 and python3."""
+    if sys.version_info[0] > 2 and hasattr(file_name, 'encode'):
+        file_name = file_name.encode(errors='surrogateescape')
+    return file_name
