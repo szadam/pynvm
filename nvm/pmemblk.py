@@ -166,7 +166,7 @@ def check(filename, block_size=0):
 
     :return: True if memory pool is consistent, False otherwise.
     """
-    ret = lib.pmemblk_check(filename, block_size)
+    ret = lib.pmemblk_check(_coerce_fn(filename), block_size)
     return ret == 1
 
 

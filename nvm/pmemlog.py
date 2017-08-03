@@ -123,7 +123,7 @@ def check(filename):
 
     :return: True if memory pool is consistent, False otherwise.
     """
-    ret = lib.pmemlog_check(filename)
+    ret = lib.pmemlog_check(_coerce_fn(filename))
     return ret == 1
 
 
