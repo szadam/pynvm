@@ -10,7 +10,10 @@
 """
 import os
 from _pmem import lib, ffi
-from .pmemobj.compat import _coerce_fn
+from .pmemobj.compat import _coerce_fn, ErrChecker
+
+_err_check = ErrChecker(lib.pmemblk_errormsg)
+
 
 class BlockPool(object):
     """This class represents the Block Pool opened or created using
@@ -58,7 +61,7 @@ class BlockPool(object):
         data = ffi.new("char[]", self.block_size)
         ret = lib.pmemblk_read(self.block_pool, data, block_num)
         if ret == -1:
-            raise RuntimeError(ffi.string(ret))
+            _err_check.raise_per_errno()
         return ffi.string(data)
 
     def write(self, data, block_num):
@@ -73,7 +76,7 @@ class BlockPool(object):
         """
         ret = lib.pmemblk_write(self.block_pool, data, block_num)
         if ret == -1:
-            raise RuntimeError(os.strerror(ffi.errno))
+            _err_check.raise_per_errno()
         return ret
 
     def set_zero(self, block_num):
@@ -87,7 +90,7 @@ class BlockPool(object):
         """
         ret = lib.pmemblk_set_zero(self.block_pool, block_num)
         if ret == -1:
-            raise RuntimeError(os.strerror(ffi.errno))
+            _err_check.raise_per_errno()
         return ret
 
     def set_error(self, block_num):
@@ -100,7 +103,7 @@ class BlockPool(object):
         """
         ret = lib.pmemblk_set_error(self.block_pool, block_num)
         if ret == -1:
-            raise RuntimeError(os.strerror(ffi.errno))
+            _err_check.raise_per_errno()
         return ret
 
 
@@ -122,8 +125,7 @@ def open(filename, block_size=0):
     :rtype: BlockPool
     """
     ret = lib.pmemblk_open(_coerce_fn(filename), block_size)
-    if ret == ffi.NULL:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_null(ret)
     return BlockPool(ret)
 
 
@@ -150,8 +152,7 @@ def create(filename, block_size=lib.PMEMBLK_MIN_BLK,
     """
     ret = lib.pmemblk_create(_coerce_fn(filename), block_size,
                              pool_size, mode)
-    if ret == ffi.NULL:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_null(ret)
     return BlockPool(ret)
 
 

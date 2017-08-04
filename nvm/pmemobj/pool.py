@@ -10,7 +10,7 @@ from threading import RLock
 
 from _pmem import lib, ffi
 from .list import PersistentList
-from .compat import _coerce_fn
+from .compat import _coerce_fn, ErrChecker
 
 log = logging.getLogger('nvm.pmemobj')
 tlog = logging.getLogger('nvm.pmemobj.trace')
@@ -28,43 +28,11 @@ POBJECT_TYPE_NUM = 20
 INTERNAL_ABORT_ERRNO = 99999
 
 # Dummy class used to mark objects persisted by pickling.
-class PICKLE_SENTINEL: pass
+class PICKLE_SENTINEL:
+    pass
 
-# This could also be centralized except that there is a per-library error
-# message function.
-def _raise_per_errno():
-    """Raise appropriate error, based on current errno using current message.
 
-    Assume the pmem library has detected an error, and use the current errno
-    and errormessage to raise an appropriate Python exception.  Convert EINVAL
-    into ValueError, ENOMEM into MemoryError, and all others into OSError.
-    """
-    # XXX should probably check for errno 0 and/or an unset message.
-    err = ffi.errno
-    msg = ffi.string(lib.pmemobj_errormsg())
-    if err == 0:
-        raise OSError("raise_per_errno called with errno 0", 0)
-    # In python3 OSError would do this check for us.
-    if err == errno.EINVAL:
-        raise ValueError(msg)
-    elif err == errno.ENOMEM:
-        raise MemoryError(msg)
-    else:
-        # In Python3 some errnos may result in subclass exceptions, but
-        # the above are not covered by the OSError subclass logic.
-        raise OSError(err, msg)
-
-def _check_null(value):
-    """Raise an error if value is NULL."""
-    if value == ffi.NULL:
-        _raise_per_errno()
-    return value
-
-def _check_errno(errno):
-    """Raise an error if errno is not zero."""
-    if errno:
-        _raise_per_errno()
-
+_err_check = ErrChecker(lib.pmemobj_errormsg)
 _class_string_cache = {}
 def _class_string(cls):
     """Return a string we can use later to find the base class of cls.
@@ -260,7 +228,7 @@ class _Transaction(object):
     def begin(self):
         """Start a new (sub)transaction."""
         tlog.debug('start_transaction %s', self._trans_stack)
-        _check_errno(
+        _err_check.check_errno(
             lib.pmemobj_tx_begin(self.pool_ptr, ffi.NULL, ffi.NULL))
         self._trans_stack.append(self._FREE)
 
@@ -273,7 +241,7 @@ class _Transaction(object):
             raise RuntimeError("Non-context commit inside a context")
         self._trans_stack.pop()
         lib.pmemobj_tx_commit()
-        _check_errno(lib.pmemobj_tx_end())
+        _err_check.check_errno(lib.pmemobj_tx_end())
 
     def abort(self, errno=errno.ECANCELED):
         """Abort the current (sub)transaction."""
@@ -285,12 +253,13 @@ class _Transaction(object):
         if self._trans_stack[-1] == self._FREE:
             self._trans_stack.pop()
             # This will raise ECANCELED.
-            _check_errno(lib.pmemobj_tx_end())
+            _err_check.check_errno(lib.pmemobj_tx_end())
 
     def __enter__(self):
         self._trans_stack.append(self._CONTEXT)
         tlog.debug('__enter__ %s', self._trans_stack)
-        _check_errno(lib.pmemobj_tx_begin(self.pool_ptr, ffi.NULL, ffi.NULL))
+        _err_check.check_errno(
+            lib.pmemobj_tx_begin(self.pool_ptr, ffi.NULL, ffi.NULL))
         return self
 
     def __exit__(self, *args):
@@ -315,7 +284,7 @@ class _Transaction(object):
         if err:
             self._obj_cache.clear_transaction_cache()
             if err != INTERNAL_ABORT_ERRNO:
-                _raise_per_errno()
+                _err_check.raise_per_errno()
         elif not self._trans_stack:
             self._obj_cache.commit_transaction_cache()
 
@@ -361,7 +330,7 @@ class MemoryManager(object):
             return OID_NULL
         oid = self.otuple(lib.pmemobj_tx_zalloc(size, type_num))
         if oid == self.OID_NULL:
-            _raise_per_errno()
+            _err_check.raise_per_errno()
         log.debug('malloced oid: %s', oid)
         return oid
 
@@ -379,7 +348,7 @@ class MemoryManager(object):
             type_num = lib.pmemobj_type_num(oid)
         oid = self.otuple(lib.pmemobj_tx_zrealloc(oid, size, type_num))
         if oid == self.OID_NULL:
-            _raise_per_errno()
+            _err_check.raise_per_errno()
         log.debug('oid: %s', oid)
         return oid
 
@@ -387,14 +356,14 @@ class MemoryManager(object):
         """Free the memory pointed to by oid."""
         oid = self.otuple(oid)
         log.debug('free: %r', oid)
-        _check_errno(lib.pmemobj_tx_free(oid))
+        _err_check.check_errno(lib.pmemobj_tx_free(oid))
         self._obj_cache.purge(oid)
 
     def direct(self, oid):
         """Return the real memory address where oid lives."""
         oid = self.otuple(oid)
         assert oid[0], "invalid OID: {}".format(oid)
-        return _check_null(lib.pmemobj_direct(oid))
+        return _err_check.check_null(lib.pmemobj_direct(oid))
 
     def snapshot_range(self, ptr, size):
         tlog.debug('snapshot %s %s', ptr, size)
@@ -706,11 +675,11 @@ class PersistentObjectPool(object):
         self.debug = debug
         exists = os.path.exists(filename)
         if flag == 'w' or (flag == 'c' and exists):
-            self._pool_ptr = _check_null(
+            self._pool_ptr = _err_check.check_null(
                 lib.pmemobj_open(_coerce_fn(filename),
                                  layout_version))
         elif flag == 'x' or (flag == 'c' and not exists):
-            self._pool_ptr = _check_null(
+            self._pool_ptr = _err_check.check_null(
                 lib.pmemobj_create(_coerce_fn(filename),
                                    layout_version,
                                    pool_size,

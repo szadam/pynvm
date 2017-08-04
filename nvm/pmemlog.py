@@ -10,7 +10,9 @@
 """
 import os
 from _pmem import lib, ffi
-from .pmemobj.compat import _coerce_fn
+from .pmemobj.compat import _coerce_fn, ErrChecker
+
+_err_check = ErrChecker(lib.pmemlog_errormsg)
 
 
 class LogPool(object):
@@ -142,8 +144,7 @@ def open(filename):
     :rtype: LogPool
     """
     ret = lib.pmemlog_open(_coerce_fn(filename))
-    if ret == ffi.NULL:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_null(ret)
     return LogPool(ret)
 
 
@@ -164,6 +165,5 @@ def create(filename, pool_size=lib.PMEMLOG_MIN_POOL, mode=0o666):
     :rtype: LogPool
     """
     ret = lib.pmemlog_create(_coerce_fn(filename), pool_size, mode)
-    if ret == ffi.NULL:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_null(ret)
     return LogPool(ret)

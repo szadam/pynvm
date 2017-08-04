@@ -11,7 +11,7 @@
 import os
 import sys
 from _pmem import lib, ffi
-from .pmemobj.compat import _coerce_fn
+from .pmemobj.compat import _coerce_fn, ErrChecker
 
 #: Create the named file if it does not exist.
 FILE_CREATE = 1
@@ -25,6 +25,8 @@ FILE_SPARSE = 4
 
 #: Create a mapping for an unnamed temporary file.
 FILE_TMPFILE = 8
+
+_err_check = ErrChecker(lib.pmem_errormsg)
 
 
 class MemoryBuffer(object):
@@ -201,8 +203,7 @@ def map_file(file_name, file_size, flags, mode):
     ret = lib.pmem_map_file(_coerce_fn(file_name), file_size, flags, mode,
                             ret_mappend_len, ret_is_pmem)
 
-    if ret == ffi.NULL:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_null(ret)
 
     ret_mapped_len = ret_mappend_len[0]
     ret_is_pmem = bool(ret_is_pmem[0])
@@ -218,10 +219,7 @@ def unmap(memory_buffer):
     """
     cdata = memory_buffer._cdata()
     ret = lib.pmem_unmap(cdata, len(memory_buffer))
-
-    if ret:
-        raise RuntimeError(os.strerror(ffi.errno))
-
+    _err_check.check_errno(ret)
     return ret
 
 
@@ -253,8 +251,7 @@ def msync(memory_buffer):
     """
     cdata = memory_buffer._cdata()
     ret = lib.pmem_msync(cdata, len(memory_buffer))
-    if ret:
-        raise RuntimeError(os.strerror(ffi.errno))
+    _err_check.check_errno(ret)
     return ret
 
 
