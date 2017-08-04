@@ -89,7 +89,7 @@ class TestPmemBlk(TestCase):
             res = self.pool.set_zero(idx)
             self.assertEqual(res, 0)
             read_data = self.pool.read(idx)
-            self.assertEqual(read_data, "")
+            self.assertEqual(read_data, b"")
 
     def test_set_error(self):
         data = b"abc" * 128
