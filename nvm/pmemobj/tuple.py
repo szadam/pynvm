@@ -20,7 +20,8 @@ class PersistentTuple(PersistentList):
         item_count = len(args[0])
         mm = self._p_mm
         with mm.transaction():
-            mm.snapshot_range(self._body, ffi.sizeof('PTupleObject'))
+            mm.snapshot_range(
+                ffi.addressof(self._body, 'ob_items'), ffi.sizeof('PObjPtr'))
             self._body.ob_items = mm.malloc(
                                     item_count * ffi.sizeof('PObjPtr'),
                                     type_num=TUPLE_POBJPTR_ARRAY_TYPE_NUM)
@@ -31,9 +32,7 @@ class PersistentTuple(PersistentList):
             ob.ob_size = item_count
 
             for index, value in enumerate(args[0]):
-                v_oid = mm.persist(value)
-                mm.incref(v_oid)
-                self._items[index] = v_oid
+                super(self.__class__, self).__setitem__(index, value)
 
     def _p_new(self, manager):
         mm = self._p_mm = manager
