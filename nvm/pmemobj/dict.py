@@ -45,7 +45,12 @@ PDICTKEYSOBJECT_TYPE_NUM = 40
 # between versions or across platforms, so we need a stable hash of our own.
 # XXX This is a prime candidate for being recoded in C, hopefully avoiding
 # the string conversion step somehow.
+def is_hashable(s):
+    return hasattr(s, "__len__") == False or len(s) > 0
+
 def fixed_hash(s):
+    if not is_hashable(s):
+        raise TypeError("Key is not hashable")
     s = str(s)
     if sys.version_info[0] > 2:
         s = s.encode()
