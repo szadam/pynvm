@@ -116,7 +116,7 @@ class PersistentSet(abc.MutableSet):
         newsize = int(newsize)
 
         with mm.transaction():
-            oldtable = self._body.table
+            oldtable = mm.otuple(self._body.table)
             oldtable_data = ffi.cast('PSetEntry *', mm.direct(oldtable))
             newtable = self._alloc_empty_table(newsize)
 
