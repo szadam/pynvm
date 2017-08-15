@@ -354,7 +354,7 @@ class PersistentSet(abc.MutableSet):
             result = self._set_intersection(args[0])
             for arg in args[1:]:
                 newresult = result._set_intersection(arg)
-                result._p_deallocate()
+                mm._deallocate(result._p_oid)
                 result = newresult
             return result
 
