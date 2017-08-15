@@ -29,14 +29,14 @@ class ReprWrapper:
         return repr(self.value)
 
 
-class TestJointOps():
+class JointOps():
     thetype = None
     basetype = thetype
 
     def _make_set(self, *args):
         if not hasattr(self, "pop"):
             self.fn = self._test_fn()
-            self.pop = pmemobj.create(self.fn)
+            self.pop = pmemobj.create(self.fn, pool_size=32*1024*1024)
             self.pop.root = self.pop.new(pmemobj.PersistentList, [])
             self.addCleanup(self.pop.close)
 
@@ -265,7 +265,7 @@ class TestJointOps():
         self.assertFalse(self._make_set('cbs').issuperset('a'))
 
 
-class TestPersistentSet(TestJointOps, TestCase):
+class TestPersistentSet(JointOps, TestCase):
     thetype = pmemobj.PersistentSet
     basetype = thetype
 
@@ -340,7 +340,7 @@ class TestPersistentSet(TestJointOps, TestCase):
         self.assertRaises(KeyError, self.s.pop)
 
 
-class TestPersistentFrozenSet(TestJointOps, TestCase):
+class TestPersistentFrozenSet(JointOps, TestCase):
     thetype = pmemobj.PersistentFrozenSet
     basetype = thetype
 
