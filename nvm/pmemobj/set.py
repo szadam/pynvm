@@ -5,7 +5,7 @@ from .compat import recursive_repr, abc
 from _pmem import ffi
 from .dict import fixed_hash
 
-PERM_SET_MINSIZE = 8
+PERM_SET_MINSIZE = 64
 
 HASH_DUMMY = ffi.cast('uint64_t', -1)
 HASH_UNUSED = 0
@@ -35,15 +35,8 @@ class PersistentSet(abc.MutableSet):
             self._add(item)
 
     def _alloc_empty_table(self, tablesize):
-        mm = self._p_mm
-        with mm.transaction():
-            table = mm.malloc(ffi.sizeof('PSetEntry') * tablesize,
-                              type_num=SET_POBJPTR_ARRAY_TYPE_NUM)
-            table_data = ffi.cast('PSetEntry *', mm.direct(table))
-            for i in range(tablesize):
-                table_data[i].key = mm.OID_NULL
-                table_data[i].hash = HASH_UNUSED
-            return table
+        return self._p_mm.malloc(ffi.sizeof('PSetEntry') * tablesize,
+                                 type_num=SET_POBJPTR_ARRAY_TYPE_NUM)
 
     def _p_new(self, manager):
         mm = self._p_mm = manager
