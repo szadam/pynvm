@@ -27,6 +27,19 @@ pmemobj_structs = """
         PObjPtr ob_items;
         } PTupleObject;
     typedef struct {
+        PObjPtr  key;
+        uint64_t hash;
+        } PSetEntry;
+    typedef struct {
+        PObject ob_base;
+        size_t fill;
+        size_t used;
+        size_t mask;
+        size_t hash;
+        size_t finger;
+        PObjPtr table; /* PSetEntry */
+        } PSetObject;
+    typedef struct {
         PObject ob_base;
         double fval;
         } PFloatObject;
