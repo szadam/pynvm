@@ -28,7 +28,7 @@ class PersistentList(abc.MutableSequence):
         mm = self._p_mm = manager
         with mm.transaction():
             # XXX Will want to implement a freelist here, like CPython
-            self._p_oid = mm.malloc(ffi.sizeof('PListObject'))
+            self._p_oid = mm.zalloc(ffi.sizeof('PListObject'))
             ob = ffi.cast('PObject *', mm.direct(self._p_oid))
             ob.ob_type = mm._get_type_code(PersistentList)
         self._body = ffi.cast('PListObject *', mm.direct(self._p_oid))
@@ -78,10 +78,10 @@ class PersistentList(abc.MutableSequence):
         items = self._items
         with mm.transaction():
             if items is None:
-                items = mm.malloc(new_allocated * ffi.sizeof('PObjPtr'),
+                items = mm.zalloc(new_allocated * ffi.sizeof('PObjPtr'),
                                   type_num=LIST_POBJPTR_ARRAY_TYPE_NUM)
             else:
-                items = mm.realloc(self._body.ob_items,
+                items = mm.zrealloc(self._body.ob_items,
                                    new_allocated * ffi.sizeof('PObjPtr'),
                                    LIST_POBJPTR_ARRAY_TYPE_NUM)
             mm.snapshot_range(self._body, ffi.sizeof('PListObject'))

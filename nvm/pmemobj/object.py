@@ -32,7 +32,7 @@ class PersistentObject(object):
         mm = self._p_mm = manager
         with mm.transaction():
             # XXX will want to implement a freelist here.
-            self._p_oid = mm.malloc(ffi.sizeof('PObjectObject'))
+            self._p_oid = mm.zalloc(ffi.sizeof('PObjectObject'))
             ob = ffi.cast('PObject *', mm.direct(self._p_oid))
             ob.ob_type = mm._get_type_code(self.__class__)
             d = self._p_body = ffi.cast('PObjectObject *',

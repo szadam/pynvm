@@ -159,7 +159,7 @@ Managing Persistent Memory
       All ``MemoryManager`` methods that return oids return them in tuple form.
 
 
-   .. method:: malloc(size, type_num=POBJECT_TYPE_NUM)
+   .. method:: alloc(size, type_num=POBJECT_TYPE_NUM)
 
       Return an ``oid`` pointing to *size* bytes of newly allocated persistent
       memory, passing *type_num* to libpmemobj as the new memory object's type.
@@ -172,6 +172,11 @@ Managing Persistent Memory
       something other than POBJECT_TYPE_NUM is used, nothing should break even
       if the number collides with at used by a different :class:`Persistent`
       type, you just lose some memory type safety.)
+
+
+   .. method:: zalloc(size, type_num=POBJECT_TYPE_NUM)
+
+      Same as :meth:`alloc`, but the allocated persistent memory is also zeroed.
 
 
    .. method:: free(oid)
@@ -189,6 +194,12 @@ Managing Persistent Memory
       does not match the pmem type of *oid*.  :meth:`free` the memory
       originally pointed to by *oid*.  Raise an error if called outside
       of any transaction.
+
+
+   .. method:: zrealloc(size, type_num=POBJECT_TYPE_NUM)
+
+      Same as :meth:`realloc`, but the newly allocated persistent memory is also
+      zeroed.
 
 
    .. method:: incref(oid)

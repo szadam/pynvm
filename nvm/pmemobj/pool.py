@@ -33,6 +33,7 @@ class PICKLE_SENTINEL:
 
 
 _err_check = ErrChecker(lib.pmemobj_errormsg)
+
 _class_string_cache = {}
 def _class_string(cls):
     """Return a string we can use later to find the base class of cls.
@@ -319,19 +320,35 @@ class MemoryManager(object):
     # transaction executing in a given thread at a time.  XXX should add a
     # check for this, probably in __enter__.
 
-    def malloc(self, size, type_num=POBJECT_TYPE_NUM):
+    def alloc(self, size, type_num=POBJECT_TYPE_NUM):
         """Return a pointer to size bytes of newly allocated persistent memory.
 
         By default the pmemobject type number is POBJECT_TYPE_NUM; be careful
         to specify a different type number for non-PObject allocations.
         """
-        log.debug('malloc: %r', size)
+        log.debug('alloc: %r', size)
+        if size == 0:
+            return OID_NULL
+        oid = self.otuple(lib.pmemobj_tx_alloc(size, type_num))
+        if oid == self.OID_NULL:
+            _err_check.raise_per_errno()
+        log.debug('alloced oid: %s', oid)
+        return oid
+
+    def zalloc(self, size, type_num=POBJECT_TYPE_NUM):
+        """Return a pointer to size bytes of newly allocated zeroed
+        persistent memory.
+
+        By default the pmemobject type number is POBJECT_TYPE_NUM; be careful
+        to specify a different type number for non-PObject allocations.
+        """
+        log.debug('zalloc: %r', size)
         if size == 0:
             return OID_NULL
         oid = self.otuple(lib.pmemobj_tx_zalloc(size, type_num))
         if oid == self.OID_NULL:
             _err_check.raise_per_errno()
-        log.debug('malloced oid: %s', oid)
+        log.debug('zalloced oid: %s', oid)
         return oid
 
     def realloc(self, oid, size, type_num=None):
@@ -346,10 +363,29 @@ class MemoryManager(object):
             return OID_NULL
         if type_num is None:
             type_num = lib.pmemobj_type_num(oid)
+        oid = self.otuple(lib.pmemobj_tx_realloc(oid, size, type_num))
+        if oid == self.OID_NULL:
+            _err_check.raise_per_errno()
+        log.debug('realloced oid: %s', oid)
+        return oid
+
+    def zrealloc(self, oid, size, type_num=None):
+        """Copy oid contents into size bytes of new zeroed
+        persistent memory.
+
+        Return pointer to the new memory.
+        """
+        oid = self.otuple(oid)
+        log.debug('zrealloc: %r %r', oid, size)
+        if size == 0:
+            self.free(oid)
+            return OID_NULL
+        if type_num is None:
+            type_num = lib.pmemobj_type_num(oid)
         oid = self.otuple(lib.pmemobj_tx_zrealloc(oid, size, type_num))
         if oid == self.OID_NULL:
             _err_check.raise_per_errno()
-        log.debug('oid: %s', oid)
+        log.debug('zrealloced oid: %s', oid)
         return oid
 
     def free(self, oid):
@@ -495,7 +531,7 @@ class MemoryManager(object):
         s = dumps(obj)
         print(s)
         with self.transaction():
-            p_obj_oid = self.malloc(ffi.sizeof('PVarObject') + len(s))
+            p_obj_oid = self.zalloc(ffi.sizeof('PVarObject') + len(s))
             p_pickle = ffi.cast('PVarObject *', self.direct(p_obj_oid))
             p_pickle.ob_base.ob_type = type_code
             p_pickle.ob_size = len(s)
@@ -515,7 +551,7 @@ class MemoryManager(object):
         if sys.version_info[0] > 2:
             s = s.encode('utf-8')
         with self.transaction():
-            p_str_oid = self.malloc(ffi.sizeof('PObject') + len(s) + 1)
+            p_str_oid = self.zalloc(ffi.sizeof('PObject') + len(s) + 1)
             p_str = ffi.cast('PObject *', self.direct(p_str_oid))
             p_str.ob_type = type_code
             body = ffi.cast('char *', p_str) + ffi.sizeof('PObject')
@@ -532,7 +568,7 @@ class MemoryManager(object):
     def _persist_builtins_float(self, f):
         type_code = self._get_type_code(f.__class__)
         with self.transaction():
-            p_float_oid = self.malloc(ffi.sizeof('PFloatObject'))
+            p_float_oid = self.zalloc(ffi.sizeof('PFloatObject'))
             p_float = ffi.cast('PObject *', self.direct(p_float_oid))
             p_float.ob_type = type_code
             p_float = ffi.cast('PFloatObject *', p_float)

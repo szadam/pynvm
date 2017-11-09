@@ -35,22 +35,19 @@ class PersistentSet(abc.MutableSet):
             self._add(item)
 
     def _alloc_empty_table(self, tablesize):
-        return self._p_mm.malloc(ffi.sizeof('PSetEntry') * tablesize,
+        return self._p_mm.zalloc(ffi.sizeof('PSetEntry') * tablesize,
                                  type_num=SET_POBJPTR_ARRAY_TYPE_NUM)
 
     def _p_new(self, manager):
         mm = self._p_mm = manager
         with mm.transaction():
-            self._p_oid = mm.malloc(ffi.sizeof('PSetObject'))
+            self._p_oid = mm.zalloc(ffi.sizeof('PSetObject'))
             ob = ffi.cast('PObject *', mm.direct(self._p_oid))
             ob.ob_type = mm._get_type_code(self.__class__)
             size = PERM_SET_MINSIZE
             self._body = ffi.cast('PSetObject *', mm.direct(self._p_oid))
-            self._body.fill = 0
-            self._body.used = 0
             self._body.mask = (size - 1)
             self._body.hash = HASH_INVALID
-            self._body.finger = 0
             self._body.table = self._alloc_empty_table(PERM_SET_MINSIZE)
 
     """ Derived from set_insert_clean in setobject.c """

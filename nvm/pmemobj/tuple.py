@@ -22,7 +22,7 @@ class PersistentTuple(PersistentList):
         with mm.transaction():
             mm.snapshot_range(
                 ffi.addressof(self._body, 'ob_items'), ffi.sizeof('PObjPtr'))
-            self._body.ob_items = mm.malloc(
+            self._body.ob_items = mm.zalloc(
                                     item_count * ffi.sizeof('PObjPtr'),
                                     type_num=TUPLE_POBJPTR_ARRAY_TYPE_NUM)
 
@@ -37,15 +37,13 @@ class PersistentTuple(PersistentList):
     def _p_new(self, manager):
         mm = self._p_mm = manager
         with mm.transaction():
-            self._p_oid = mm.malloc(ffi.sizeof('PTupleObject'))
+            self._p_oid = mm.zalloc(ffi.sizeof('PTupleObject'))
 
             ob = ffi.cast('PObject *', mm.direct(self._p_oid))
             ob.ob_type = mm._get_type_code(PersistentTuple)
 
             self._body = ffi.cast('PTupleObject *', mm.direct(self._p_oid))
             self._body.ob_items = mm.OID_NULL
-
-            ffi.cast('PVarObject *', self._body).ob_size = 0
 
     def _p_resurrect(self, manager, oid):
         mm = self._p_mm = manager

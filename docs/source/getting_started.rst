@@ -181,7 +181,7 @@ Using pmemobj (*persistent objects*)
 -------------------------------------------------------------------------------
 The :mod:`nvm.pmemobj` module provides an interface to the `NVML libpmemobj API
 <http://pmem.io/nvml/manpages/master/libpmemobj.3.html>`_, which provides
-transactionally managed access to memory that supports mallocing and freeing
+transactionally managed access to memory that supports allocating and freeing
 memory areas.  In this case, rather than providing a simple wrapper around the
 pmemobj API, which by itself isn't very useful from Python, pynvm provides a
 full Python interface.  This interface allows to you store Python objects

@@ -83,7 +83,7 @@ class PersistentDict(abc.MutableMapping):
         mm = self._p_mm = manager
         with mm.transaction():
             # XXX will want to implement a freelist here.
-            self._p_oid = mm.malloc(ffi.sizeof('PDictObject'))
+            self._p_oid = mm.zalloc(ffi.sizeof('PDictObject'))
             ob = ffi.cast('PObject *', mm.direct(self._p_oid))
             ob.ob_type = mm._get_type_code(PersistentDict)
             d = self._body = ffi.cast('PDictObject *', mm.direct(self._p_oid))
@@ -91,7 +91,6 @@ class PersistentDict(abc.MutableMapping):
             # split dicts.
             d.ma_keys = self._new_keys_object(MIN_SIZE_COMBINED)
             d.ma_values = mm.OID_NULL
-            d.ma_used = 0
 
     def _p_resurrect(self, manager, oid):
         mm = self._p_mm = manager
@@ -113,7 +112,7 @@ class PersistentDict(abc.MutableMapping):
         assert size >= MIN_SIZE_SPLIT
         mm = self._p_mm
         with mm.transaction():
-            dk_oid = mm.malloc(ffi.sizeof('PDictKeysObject')
+            dk_oid = mm.zalloc(ffi.sizeof('PDictKeysObject')
                                + ffi.sizeof('PDictKeyEntry') * (size - 1),
                                type_num=PDICTKEYSOBJECT_TYPE_NUM)
             dk = ffi.cast('PDictKeysObject *', mm.direct(dk_oid))
