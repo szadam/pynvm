@@ -5,8 +5,8 @@
 :mod:`pmemblk` -- arrays of pmem-resident blocks
 ==================================================================
 
-.. seealso:: `NVML libpmemblk man page
-             <http://pmem.io/nvml/manpages/master/libpmemblk.3.html>`_.
+.. seealso:: `PMDK libpmemblk man page
+    <http://pmem.io/pmdk/manpages/linux/master/libpmemblk/libpmemblk.7.html>`_.
 """
 import os
 from _pmem import lib, ffi

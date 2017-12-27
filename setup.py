@@ -23,7 +23,7 @@ setup(
     cffi_modules=["nvm/libex.py:ffi"],
     test_suite="nose.collector",
     packages=['nvm', 'nvm.pmemobj'],
-    keywords='nvm, scm, non-volatile memory, nvml, nvm library, pmem, dax',
+    keywords='nvm, scm, non-volatile memory, pmdk, pmem, dax',
     platforms='Any',
     zip_safe=True,
     classifiers=[

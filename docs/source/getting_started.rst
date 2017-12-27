@@ -3,9 +3,9 @@ Getting Started
 
 Installation and Requirements
 -------------------------------------------------------------------------------
-To install **pynvm** you need to first install NVML:
+To install **pynvm** you need to first install PMDK:
 
-    * `NVM Library <https://github.com/pmem/nvml>`_ (install instructions at
+    * `PMDK <https://github.com/pmem/pmdk>`_ (install instructions at
       Github)
 
 You can then install **pynvm** using **pip**::
@@ -21,14 +21,14 @@ via the ``nvm`` namespace.  For example, to use pmemobj you can do::
 
 Using pmem (*low level persistent memory*)
 -------------------------------------------------------------------------------
-The :mod:`nvm.pmem` module provides an interface to the `NVML libpmem API
-<http://pmem.io/nvml/manpages/master/libpmem.3.html>`_, which provides low
-level persistent memory support.  This module provides tools you can
-use to implement tear-proof persistent memory updates, but working at this
+The :mod:`nvm.pmem` module provides an interface to the `PMDK libpmem API
+<http://pmem.io/pmdk/manpages/linux/master/libpmem/libpmem.7.html>`_, which
+provides low level persistent memory support.  This module provides tools you
+can use to implement tear-proof persistent memory updates, but working at this
 level your application is solely responsible for protecting against tears.
 
 .. seealso:: For more information regarding **libpmem**, please refer to the
-             `libpmem documentation <http://pmem.io/nvml/libpmem/>`_.
+             `libpmem documentation <http://pmem.io/pmdk/libpmem/>`_.
 
 Here is an example of opening a PMEM file, writing to it, and reading from it:
 
@@ -106,13 +106,13 @@ buffers:
 
 Using pmemlog (*pmem-resident log file*)
 -------------------------------------------------------------------------------
-The :mod:`nvm.pmemlog` module provides an interface to the `NVML libpmemlog API
-<http://pmem.io/nvml/manpages/master/libpmemlog.3.html>`_, which provides
-pmem-resident log (*append-only*) file memory support.  Writes to the
-log are atomic.
+The :mod:`nvm.pmemlog` module provides an interface to the `PMDK libpmemlog API
+<http://pmem.io/pmdk/manpages/linux/master/libpmemlog/libpmemlog.7.html>`_,
+which provides pmem-resident log (*append-only*) file memory support.
+Writes to the log are atomic.
 
 .. seealso:: For more information regarding the **libpmemlog**, please refer to
-             the `libpmemlog documentation <http://pmem.io/nvml/libpmemlog/>`_.
+             the `libpmemlog documentation <http://pmem.io/pmdk/libpmemlog/>`_.
 
 Here is an example of creating a persistent log, appending a record to it, and
 printing out the logged record:
@@ -143,12 +143,13 @@ printing out the logged record:
 
 Using pmemblk (*arrays of pmem-resident blocks*)
 -------------------------------------------------------------------------------
-The :mod:`nvm.pmemblk` module provides an interface to the `NVML libpmemblk API
-<http://pmem.io/nvml/manpages/master/libpmemblk.3.html>`_, which provides
-support for arrays of pmem-resident blocks.  Writes to the blocks are atomic.
+The :mod:`nvm.pmemblk` module provides an interface to the `PMDK libpmemblk API
+<http://pmem.io/pmdk/manpages/linux/master/libpmemblk/libpmemblk.7.html>`_,
+which provides support for arrays of pmem-resident blocks.  Writes to the
+blocks are atomic.
 
 .. seealso:: For more information regarding the **libpmemblk**, please refer to
-             the `libpmemblk documentation <http://pmem.io/nvml/libpmemblk/>`_.
+             the `libpmemblk documentation <http://pmem.io/pmdk/libpmemblk/>`_.
 
 Here is an example of creating a block pool and writing into the blocks:
 
@@ -179,13 +180,13 @@ Here is an example of creating a block pool and writing into the blocks:
 
 Using pmemobj (*persistent objects*)
 -------------------------------------------------------------------------------
-The :mod:`nvm.pmemobj` module provides an interface to the `NVML libpmemobj API
-<http://pmem.io/nvml/manpages/master/libpmemobj.3.html>`_, which provides
-transactionally managed access to memory that supports allocating and freeing
-memory areas.  In this case, rather than providing a simple wrapper around the
-pmemobj API, which by itself isn't very useful from Python, pynvm provides a
-full Python interface.  This interface allows to you store Python objects
-persistently.
+The :mod:`nvm.pmemobj` module provides an interface to the `PMDK libpmemobj API
+<http://pmem.io/pmdk/manpages/linux/master/libpmemobj/libpmemobj.7.html>`_,
+which provides transactionally managed access to memory that supports
+allocating and freeing memory areas.  In this case, rather than providing a
+simple wrapper around the pmemobj API, which by itself isn't very useful from
+Python, pynvm provides a full Python interface.  This interface allows to you
+store Python objects persistently.
 
 This is a work in progress: currently persistence is supported only for lists
 (PersistentList), dicts (PersistentDict), objects (PersistentObject),

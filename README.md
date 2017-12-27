@@ -5,7 +5,7 @@
 
 # pynvm - Non-volatile memory to Python ecosystem
 
-A Python implementation of bindings to the [NVM Library](https://github.com/pmem/nvml).
+A Python implementation of bindings to the [Persistent Memory Development Kit](https://github.com/pmem/pmdk).
 
 ## Documentation
 

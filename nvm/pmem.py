@@ -5,8 +5,8 @@
 :mod:`pmem` -- low level persistent memory support
 ==================================================================
 
-.. seealso:: `NVML libpmem man page
-             <http://pmem.io/nvml/manpages/master/libpmem.3.html>`_.
+.. seealso:: `PMDK libpmem man page
+        <http://pmem.io/pmdk/manpages/linux/master/libpmem/libpmem.7.html>`_.
 """
 import os
 import sys
@@ -183,8 +183,8 @@ def map_file(file_name, file_size, flags, mode):
     file is mapped to memory; its length is used as the length of the
     mapping.
 
-    .. seealso:: `NVML libpmem documentation <http://pmem.io/nvml/libpmem/libpm
-                 em.3.html>`_.
+    .. seealso:: `PMDK libpmem documentation
+        <http://pmem.io/pmdk/manpages/linux/master/libpmem/libpmem.7.html>`_.
 
     :param file_name: The file name to use.
     :param file_size: the size to allocate

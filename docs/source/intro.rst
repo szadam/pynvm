@@ -1,8 +1,8 @@
 Introduction
 ===============================================================================
 
-This library provides Python bindings for the `NVM Library
-<https://github.com/pmem/nvml>`_.
+This library provides Python bindings for `PMDK: Persistent Memory Development
+Kit <https://github.com/pmem/pmdk>`_.
 
 
 Overview and Rationale
@@ -14,10 +14,10 @@ using processor **load** and **store** instructions, but retaining its contents
 across power loss just like traditional storages.
 
 The goal of this project is to provide Python bindings for the libraries that
-are part of the `NVM Library <https://github.com/pmem/nvml>`_. The **pynvml**
-project aims to create bindings for the NVM Library without modifying the
-Python interpreter itself, thus making it compatible to a wide range of Python
-interpreters (including PyPy).
+are part of `PMDK: Persistent Memory Development Toolkit
+<https://github.com/pmem/pmdk>`_.  The **pynvm** project aims to create
+bindings for PMDK without modifying the Python interpreter itself, thus making
+it compatible to a wide range of Python interpreters (including PyPy).
 
 
 How it works
@@ -40,7 +40,7 @@ serialize data to disk anymore to save it between program runs, you just keep
 your data structures in memory that is **persistent**.
 
 Providing the infrastructure to do this reliably is the purpose of Intel's
-`NVM Library <https://github.com/pmem/nvml>`_, for which this package provides
+`PMDK <https://github.com/pmem/pmdk>`_, for which this package provides
 Python bindings.
 
 .. seealso ::
