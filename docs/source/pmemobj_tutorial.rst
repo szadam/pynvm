@@ -1,4 +1,4 @@
-:mod:`pmmemobj` tutorial
+:mod:`pmemobj` tutorial
 ===============================================================================
 
 :mod:`pmem`, :mod:`pmemblk`, and :mod:`pmemlog` will be interesting to people

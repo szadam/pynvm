@@ -7,7 +7,7 @@
 
 
 
-Creating and Accessing a :mod:`PersistentOjbectPool`
+Creating and Accessing a :mod:`PersistentObjectPool`
 ----------------------------------------------------
 
 
