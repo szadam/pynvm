@@ -133,7 +133,7 @@ html_theme = 'alabaster'
 
 html_theme_options = {
     'logo': 'imgs/logo_red.png',
-    'github_user': 'perone',
+    'github_user': 'pmem',
     'github_repo': 'pynvm',
     'github_banner': True,
 }
